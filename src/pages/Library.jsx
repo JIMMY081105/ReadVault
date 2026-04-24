@@ -3,24 +3,17 @@ import { PlusIcon, MagnifyingGlassIcon, Squares2X2Icon, ListBulletIcon } from '@
 import PageContainer from '../components/PageContainer'
 import BookCard from '../components/BookCard'
 import Button from '../components/Button'
-
-const PLACEHOLDER_BOOKS = [
-  { id: '1', title: 'The Pragmatic Programmer', author: 'David Thomas', progress: 142, totalPages: 352, gradient: 'bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900', genre: 'Tech' },
-  { id: '2', title: 'Atomic Habits', author: 'James Clear', progress: 280, totalPages: 306, gradient: 'bg-gradient-to-br from-orange-900 to-amber-900', genre: 'Self-help' },
-  { id: '3', title: 'Deep Work', author: 'Cal Newport', progress: 110, totalPages: 200, gradient: 'bg-gradient-to-br from-slate-800 to-zinc-900', genre: 'Productivity' },
-  { id: '4', title: 'SICP', author: 'Abelson & Sussman', progress: 60, totalPages: 657, gradient: 'bg-gradient-to-br from-emerald-900 to-teal-900', genre: 'Tech' },
-  { id: '5', title: 'Dune', author: 'Frank Herbert', progress: 0, totalPages: 688, gradient: 'bg-gradient-to-br from-yellow-900 to-orange-950', genre: 'Fiction' },
-  { id: '6', title: 'The Design of Everyday Things', author: 'Don Norman', progress: 0, totalPages: 368, gradient: 'bg-gradient-to-br from-rose-900 to-pink-950', genre: 'Design' },
-]
+import { booksStore } from '../db/books'
 
 const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
 
 export default function Library() {
+  const [books] = useState(() => booksStore.getAll())
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [gridView, setGridView] = useState(true)
 
-  const filtered = PLACEHOLDER_BOOKS.filter((b) => {
+  const filtered = books.filter((b) => {
     const matchSearch =
       b.title.toLowerCase().includes(search.toLowerCase()) ||
       b.author.toLowerCase().includes(search.toLowerCase())
