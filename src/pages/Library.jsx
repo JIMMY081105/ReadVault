@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PlusIcon, MagnifyingGlassIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import BookCard from '../components/BookCard'
@@ -8,6 +9,7 @@ import { booksStore } from '../db/books'
 const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
 
 export default function Library() {
+  const navigate = useNavigate()
   const [books] = useState(() => booksStore.getAll())
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
@@ -105,6 +107,7 @@ export default function Library() {
               /* List view row */
               <div
                 key={book.id}
+                onClick={() => navigate(`/reader/${book.id}`)}
                 className="flex items-center gap-3 bg-surface border border-white/[0.06] rounded-2xl p-3 active:scale-[0.98] transition-transform cursor-pointer"
               >
                 <div className={`w-10 h-14 rounded-xl flex-shrink-0 ${book.gradient}`} />

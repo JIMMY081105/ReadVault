@@ -65,43 +65,6 @@ const CONTENT = {
       },
     ],
   },
-
-  // ─── Pragmatic Programmer (existing) ───────────────────────────────────────
-  'pragmatic': {
-    chapters: [
-      {
-        number: 4,
-        title: 'Pragmatic Paranoia',
-        subtitle: "You Can't Write Perfect Software",
-        paragraphs: [
-          'Did you ever drive a car in foggy conditions? You slow down, you increase the distance between you and the car ahead, and you are generally more careful. You can\'t see as far ahead, so you take precautions. Pragmatic Programmers do the same when coding.',
-          'No one writes perfect software. Accept it as an axiom of life. Despite any protestations your pride may make, you too are going to write buggy code. You\'re going to write the occasional function that doesn\'t work as intended.',
-          'Given this, you have two choices. You can pretend perfection is attainable and feel guilty when you fall short. Or you can take a more pragmatic approach: accept that you will make mistakes, and build your code to detect and correct them.',
-          'Dead programs tell no lies. A dead program does a lot less damage than a crippled one. Consider using assertions liberally. Use them to document your assumptions in code — and to stop the program in its tracks when those assumptions are violated.',
-          'Leave assertions in production code. Modern CPUs are fast enough that the overhead is rarely significant. The real cost of removing assertions is not runtime performance — it\'s the loss of visibility into your program\'s actual behavior in the wild.',
-          'Design with contracts. Be strict in what you will accept, and promise as little as possible in return. A function that accepts "any string" is much harder to reason about than one that accepts "a non-empty string of at most 64 ASCII characters."',
-        ],
-      },
-    ],
-  },
-
-  // ─── Atomic Habits (existing) ──────────────────────────────────────────────
-  'atomic-habits': {
-    chapters: [
-      {
-        number: 1,
-        title: 'The Surprising Power of Atomic Habits',
-        subtitle: 'Why tiny changes make a big difference',
-        paragraphs: [
-          'It is so easy to overestimate the importance of one defining moment and underestimate the value of making small improvements on a daily basis. Too often, we convince ourselves that massive success requires massive action.',
-          'Meanwhile, improving by 1 percent isn\'t particularly notable — sometimes it isn\'t even noticeable — but it can be far more meaningful, especially in the long run. The difference a tiny improvement can make over time is astounding.',
-          'Here\'s how the math works out: if you get 1 percent better each day for one year, you\'ll end up thirty-seven times better by the time you\'re done. Conversely, if you get 1 percent worse each day for one year, you\'ll decline nearly down to zero.',
-          'Habits are the compound interest of self-improvement. The same way that money multiplies through compound interest, the effects of your habits multiply as you repeat them. They seem to make little difference on any given day and yet the impact they deliver over the months and years can be enormous.',
-          'Unfortunately, the slow pace of transformation also makes it easy to let a bad habit slide. If you eat an unhealthy meal today, the scale doesn\'t move much. If you work on your project for an hour, you don\'t see the results immediately. It is only when looking back two, five, or perhaps ten years later that the value of good habits and the cost of bad ones become strikingly apparent.',
-        ],
-      },
-    ],
-  },
 }
 
 export function getContent(bookId) {

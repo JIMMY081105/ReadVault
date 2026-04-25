@@ -11,10 +11,10 @@ const READ_DAYS = new Set([1, 2, 3, 5, 6, 8, 9, 10, 12, 15, 16, 17, 19, 21, 22, 
 const TODAY = 24
 
 const TASKS = [
-  { id: 1, title: 'Finish Chapter 4 — Pragmatic Programmer', book: 'The Pragmatic Programmer', pages: 12, done: false, time: 'Today' },
-  { id: 2, title: 'Daily goal: 30 pages', book: 'Atomic Habits', pages: 30, done: false, time: 'Today' },
-  { id: 3, title: 'Review highlights', book: 'Deep Work', pages: null, done: true, time: 'Yesterday' },
-  { id: 4, title: 'Start Part II', book: 'Dune', pages: 40, done: false, time: 'Tomorrow' },
+  { id: 1, title: 'Read introduction', book: 'Here I Am!', pages: 12, done: false, time: 'Today' },
+  { id: 2, title: 'Daily goal: 30 pages', book: 'Library', pages: 30, done: false, time: 'Today' },
+  { id: 3, title: 'Log reading time', book: 'Here I Am!', pages: null, done: true, time: 'Yesterday' },
+  { id: 4, title: 'Continue introduction', book: 'Library', pages: 20, done: false, time: 'Tomorrow' },
 ]
 
 function getDaysInMonth(year, month) {

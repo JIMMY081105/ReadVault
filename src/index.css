@@ -68,6 +68,17 @@
     line-height: 1.9;
     letter-spacing: 0.01em;
   }
+
+  .number-input-clean {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
+
+  .number-input-clean::-webkit-inner-spin-button,
+  .number-input-clean::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 @layer utilities {

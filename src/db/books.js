@@ -2,8 +2,9 @@
 // No images: covers are CSS gradient strings (~60 bytes each vs ~60KB for a jpeg).
 
 const STORAGE_KEY = 'rv_books'
+const RETIRED_BOOK_IDS = new Set(['pragmatic', 'atomic-habits', 'deep-work'])
 
-// The two user-requested books + existing placeholders
+// User-requested seed books.
 const SEED_BOOKS = [
   {
     id: 'ai-neng',
@@ -11,7 +12,7 @@ const SEED_BOOKS = [
     author: '马兆远',
     genre: '科技',
     language: 'zh',
-    totalPages: 284,
+    totalPages: 403,
     progress: 0,
     gradient: 'bg-gradient-to-br from-cyan-900 via-blue-900 to-indigo-950',
     description: '从科学角度深入剖析人工智能的本质与边界，揭示AI真正"不能"做什么。',
@@ -29,43 +30,34 @@ const SEED_BOOKS = [
     description: 'A thought-provoking exploration of the big questions: Who are we? Why are we here?',
     year: 2006,
   },
-  {
-    id: 'pragmatic',
-    title: 'The Pragmatic Programmer',
-    author: 'David Thomas & Andrew Hunt',
-    genre: 'Tech',
-    language: 'en',
-    totalPages: 352,
-    progress: 142,
-    gradient: 'bg-gradient-to-br from-violet-900 via-indigo-900 to-slate-900',
-    description: 'Your journey to mastery.',
-    year: 2019,
-  },
-  {
-    id: 'atomic-habits',
-    title: 'Atomic Habits',
-    author: 'James Clear',
-    genre: 'Self-help',
-    language: 'en',
-    totalPages: 306,
-    progress: 280,
-    gradient: 'bg-gradient-to-br from-orange-900 to-amber-900',
-    description: 'Tiny changes, remarkable results.',
-    year: 2018,
-  },
-  {
-    id: 'deep-work',
-    title: 'Deep Work',
-    author: 'Cal Newport',
-    genre: 'Productivity',
-    language: 'en',
-    totalPages: 200,
-    progress: 110,
-    gradient: 'bg-gradient-to-br from-slate-800 to-zinc-900',
-    description: 'Rules for focused success in a distracted world.',
-    year: 2016,
-  },
 ]
+
+function todayKey() {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+function clampNumber(value, min, max) {
+  const n = Math.floor(Number(value) || 0)
+  return Math.max(min, Math.min(n, max))
+}
+
+function normalizeBook(book, seed = null) {
+  const merged = seed ? { ...book, ...seed } : { ...book }
+  const totalPages = Math.max(0, Math.floor(Number(merged.totalPages) || 0))
+  const progress = clampNumber(book.progress, 0, totalPages)
+  const timeSpentMinutes = Math.max(0, Math.floor(Number(book.timeSpentMinutes) || 0))
+
+  return {
+    ...merged,
+    totalPages,
+    progress,
+    timeSpentMinutes,
+    dailyStats: book.dailyStats && typeof book.dailyStats === 'object' ? book.dailyStats : {},
+  }
+}
 
 function load() {
   try {
@@ -83,15 +75,21 @@ function save(books) {
 function init() {
   const stored = load()
   if (!stored) {
-    save(SEED_BOOKS)
-    return [...SEED_BOOKS]
+    const seeded = SEED_BOOKS.map((book) => normalizeBook(book, book))
+    save(seeded)
+    return seeded
   }
-  const storedMap = new Map(stored.map((b) => [b.id, b]))
-  // Prepend any seed books that are missing from storage
-  const merged = [...stored]
+  const seedMap = new Map(SEED_BOOKS.map((b) => [b.id, b]))
+  const activeStored = stored.filter((b) => !RETIRED_BOOK_IDS.has(b.id))
+  const storedMap = new Map(activeStored.map((b) => [b.id, b]))
+  const merged = activeStored.map((book) => normalizeBook(book, seedMap.get(book.id)))
+
+  // Prepend any seed books that are missing from storage.
   for (const seed of SEED_BOOKS) {
-    if (!storedMap.has(seed.id)) merged.unshift(seed)
+    if (!storedMap.has(seed.id)) merged.unshift(normalizeBook(seed, seed))
   }
+
+  save(merged)
   return merged
 }
 
@@ -103,7 +101,34 @@ export const booksStore = {
   updateProgress: (id, progress) => {
     const books = init()
     const book = books.find((b) => b.id === id)
-    if (book) { book.progress = Math.max(0, Math.min(progress, book.totalPages)); save(books) }
+    if (book) {
+      book.progress = clampNumber(progress, 0, book.totalPages)
+      save(books)
+      return book
+    }
+    return null
+  },
+
+  addReadingSession: (id, { pages = 0, minutes = 0, date = todayKey() } = {}) => {
+    const books = init()
+    const book = books.find((b) => b.id === id)
+    if (!book) return null
+
+    const remainingPages = Math.max(0, book.totalPages - book.progress)
+    const pagesToAdd = clampNumber(pages, 0, remainingPages)
+    const minutesToAdd = Math.max(0, Math.floor(Number(minutes) || 0))
+
+    book.progress += pagesToAdd
+    book.timeSpentMinutes = Math.max(0, Math.floor(Number(book.timeSpentMinutes) || 0)) + minutesToAdd
+    book.dailyStats = book.dailyStats && typeof book.dailyStats === 'object' ? book.dailyStats : {}
+    const day = book.dailyStats[date] ?? { pages: 0, timeMinutes: 0 }
+    book.dailyStats[date] = {
+      pages: Math.max(0, Math.floor(Number(day.pages) || 0)) + pagesToAdd,
+      timeMinutes: Math.max(0, Math.floor(Number(day.timeMinutes) || 0)) + minutesToAdd,
+    }
+
+    save(books)
+    return book
   },
 
   add: (book) => {
