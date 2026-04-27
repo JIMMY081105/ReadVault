@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { BookOpenIcon, FireIcon, ChevronRightIcon, ClockIcon } from '@heroicons/react/24/outline'
+import { BookOpenIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import { booksStore } from '../db/books'
@@ -38,19 +38,11 @@ export default function Home() {
   const books = booksStore.getAll()
   const todayKey = getLocalDateKey()
   const currentBook = books.find((book) => book.progress > 0 && book.progress < book.totalPages) ?? books[0]
-  const upNext = books.filter((book) => book.id !== currentBook?.id).slice(0, 3)
   const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.pages ?? 0), 0)
-  const totalMinutes = books.reduce((sum, book) => sum + (book.timeSpentMinutes ?? 0), 0)
-  const finishedBooks = books.filter((book) => book.totalPages && book.progress >= book.totalPages).length
+  const todayMinutes = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.timeMinutes ?? 0), 0)
   const dailyGoal = 30
   const goalPct = Math.min(100, Math.round((todayPages / dailyGoal) * 100))
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-
-  const stats = [
-    { label: 'Books Read', value: String(finishedBooks), icon: BookOpenIcon },
-    { label: 'Day Streak', value: todayPages > 0 ? '1' : '0', icon: FireIcon },
-    { label: 'Time', value: formatMinutes(totalMinutes), icon: ClockIcon },
-  ]
 
   return (
     <PageContainer>
@@ -167,65 +159,12 @@ export default function Home() {
               <p className="text-2xs text-text-muted mt-0.5">Remaining</p>
             </div>
             <div>
-              <p className="text-base font-bold text-text-primary">{formatMinutes(totalMinutes)}</p>
+              <p className="text-base font-bold text-text-primary">{formatMinutes(todayMinutes)}</p>
               <p className="text-2xs text-text-muted mt-0.5">Total time</p>
             </div>
           </div>
         </Card>
       </section>
-
-      <section className="mb-8">
-        <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
-          Your Stats
-        </h2>
-
-        <div className="grid grid-cols-3 gap-3">
-          {stats.map(({ label, value, icon: Icon }) => (
-            <Card key={label} variant="surface" className="!p-3 text-center">
-              <Icon className="w-5 h-5 text-accent mx-auto mb-2" />
-              <p className="text-xl font-bold text-text-primary truncate">{value}</p>
-              <p className="text-2xs text-text-muted mt-0.5 leading-tight">{label}</p>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {upNext.length > 0 && (
-        <section className="mb-4">
-          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
-            Up Next
-          </h2>
-
-          <div className="space-y-2.5">
-            {upNext.map((book) => {
-              const pct = progressPercent(book)
-              return (
-                <Card
-                  key={book.id}
-                  variant="surface"
-                  padding={false}
-                  onClick={() => navigate(`/reader/${book.id}`)}
-                >
-                  <div className="flex items-center gap-3 p-3">
-                    <div className={`w-10 h-14 rounded-xl flex-shrink-0 ${book.gradient}`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-text-primary truncate">{book.title}</p>
-                      <div className="mt-1.5 h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-accent/60 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <p className="text-2xs text-text-muted mt-1">{pct}% complete</p>
-                    </div>
-                    <ChevronRightIcon className="w-4 h-4 text-text-muted flex-shrink-0" />
-                  </div>
-                </Card>
-              )
-            })}
-          </div>
-        </section>
-      )}
     </PageContainer>
   )
 }

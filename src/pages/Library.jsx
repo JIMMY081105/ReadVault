@@ -1,12 +1,38 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { PlusIcon, MagnifyingGlassIcon, Squares2X2Icon, ListBulletIcon } from '@heroicons/react/24/outline'
+import {
+  PlusIcon,
+  MagnifyingGlassIcon,
+  Squares2X2Icon,
+  ListBulletIcon,
+  BookOpenIcon,
+  FireIcon,
+  ClockIcon,
+} from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import BookCard from '../components/BookCard'
 import Button from '../components/Button'
+import Card from '../components/Card'
 import { booksStore } from '../db/books'
 
 const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
+
+function getLocalDateKey() {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
+function formatMinutes(value) {
+  const minutes = Math.max(0, Math.floor(Number(value) || 0))
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+
+  if (hours && rest) return `${hours}h ${rest}m`
+  if (hours) return `${hours}h`
+  return `${rest}m`
+}
 
 export default function Library() {
   const navigate = useNavigate()
@@ -14,6 +40,15 @@ export default function Library() {
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [gridView, setGridView] = useState(true)
+  const todayKey = getLocalDateKey()
+  const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.pages ?? 0), 0)
+  const totalMinutes = books.reduce((sum, book) => sum + (book.timeSpentMinutes ?? 0), 0)
+  const finishedBooks = books.filter((book) => book.totalPages && book.progress >= book.totalPages).length
+  const stats = [
+    { label: 'Books Read', value: String(finishedBooks), icon: BookOpenIcon },
+    { label: 'Day Streak', value: todayPages > 0 ? '1' : '0', icon: FireIcon },
+    { label: 'Time', value: formatMinutes(totalMinutes), icon: ClockIcon },
+  ]
 
   const filtered = books.filter((b) => {
     const matchSearch =
@@ -93,6 +128,22 @@ export default function Library() {
       <p className="text-xs text-text-muted mb-4">
         {filtered.length} {filtered.length === 1 ? 'book' : 'books'}
       </p>
+
+      <section className="mb-6">
+        <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
+          Library Status
+        </h2>
+
+        <div className="grid grid-cols-3 gap-3">
+          {stats.map(({ label, value, icon: Icon }) => (
+            <Card key={label} variant="surface" className="!p-3 text-center">
+              <Icon className="w-5 h-5 text-accent mx-auto mb-2" />
+              <p className="text-xl font-bold text-text-primary truncate">{value}</p>
+              <p className="text-2xs text-text-muted mt-0.5 leading-tight">{label}</p>
+            </Card>
+          ))}
+        </div>
+      </section>
 
       {/* Books */}
       {filtered.length > 0 ? (
