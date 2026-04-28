@@ -15,39 +15,30 @@ import { booksStore } from '../db/books'
 import { getContent } from '../db/content'
 import { useSettings } from '../hooks/useSettings'
 import { FONT_FAMILY, LINE_HEIGHT } from '../db/settings'
+import { todayKey } from '../utils/dateKey'
+import { formatMinutes, toPositiveInteger } from '../utils/numbers'
+import type { Book, ReaderTheme } from '../types'
 
-const FONT_SIZES = [14, 16, 18, 20, 22]
+const FONT_SIZES = [14, 16, 18, 20, 22] as const
 
 const THEMES = [
   { id: 'dark',  bg: 'bg-black',         text: 'text-[#e8e8e8]', label: 'Dark'  },
   { id: 'sepia', bg: 'bg-[#1a150e]',     text: 'text-[#c8a97e]', label: 'Sepia' },
   { id: 'light', bg: 'bg-[#fafafa]',     text: 'text-[#1a1a1a]', label: 'Light' },
-]
+] as const satisfies readonly { id: ReaderTheme; bg: string; text: string; label: string }[]
 
-function themeIndexById(id) {
+function themeIndexById(id: ReaderTheme): number {
   const i = THEMES.findIndex((t) => t.id === id)
   return i === -1 ? 0 : i
 }
 
-function getLocalDateKey() {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
-}
-
-function formatMinutes(value) {
-  const minutes = Math.max(0, Math.floor(Number(value) || 0))
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-
-  if (hours && rest) return `${hours}h ${rest}m`
-  if (hours) return `${hours}h`
-  return `${rest}m`
-}
-
-function readPositiveInteger(value) {
-  return Math.max(0, Math.floor(Number(value) || 0))
+interface ReadingNumberInputProps {
+  value: string
+  onChange: (value: string) => void
+  placeholder: string
+  min?: number
+  max?: number
+  ariaLabel: string
 }
 
 function ReadingNumberInput({
@@ -57,15 +48,15 @@ function ReadingNumberInput({
   min = 1,
   max,
   ariaLabel,
-}) {
+}: ReadingNumberInputProps) {
   const numericValue = Number(value)
   const hasValue = value !== '' && Number.isFinite(numericValue)
   const currentValue = hasValue ? Math.floor(numericValue) : min - 1
-  const upperLimit = Number.isFinite(max) ? max : Infinity
+  const upperLimit = typeof max === 'number' && Number.isFinite(max) ? max : Infinity
   const canStepUp = upperLimit >= min && currentValue < upperLimit
   const canStepDown = hasValue && currentValue > min
 
-  const stepValue = (delta) => {
+  const stepValue = (delta: number) => {
     const next = Math.min(Math.max(currentValue + delta, min), upperLimit)
     if (Number.isFinite(next)) onChange(String(next))
   }
@@ -160,9 +151,9 @@ export default function Reader() {
 
   const content = getContent(id)
   const introduction = content?.chapters?.[0] ?? null
-  const currentTheme = THEMES[themeIdx]
-  const currentFontSize = FONT_SIZES[fontIdx]
-  const todayStats = bookState?.dailyStats?.[getLocalDateKey()] ?? { pages: 0, timeMinutes: 0 }
+  const currentTheme = THEMES[themeIdx] ?? THEMES[0]
+  const currentFontSize = FONT_SIZES[fontIdx] ?? FONT_SIZES[1]
+  const todayStats = bookState?.dailyStats?.[todayKey()] ?? { pages: 0, timeMinutes: 0 }
 
   if (!bookState) {
     return (
@@ -182,12 +173,12 @@ export default function Reader() {
   const totalMinutes = bookState.timeSpentMinutes ?? 0
   const estimatedBookMinutes = Math.max(totalPages * 2, totalMinutes, 1)
   const timePct = Math.min(100, Math.round((totalMinutes / estimatedBookMinutes) * 100))
-  const requestedPages = readPositiveInteger(pageEntry)
-  const requestedMinutes = readPositiveInteger(timeEntry)
+  const requestedPages = toPositiveInteger(pageEntry)
+  const requestedMinutes = toPositiveInteger(timeEntry)
   const canAddPages = requestedPages > 0 && requestedPages <= remainingPages
   const canAddTime = requestedMinutes > 0
 
-  const refreshBook = (updated) => {
+  const refreshBook = (updated: Book | null) => {
     if (updated) setBookState({ ...updated })
   }
 

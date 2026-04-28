@@ -9,6 +9,8 @@ import { booksStore } from '../db/books'
 import { goalsStore } from '../db/goals'
 import { todayKey } from '../utils/dateKey'
 import { useSettings } from '../hooks/useSettings'
+import { bookProgressPercent, formatMinutes } from '../utils/numbers'
+import type { DateKey, Goal, GoalInput } from '../types'
 
 function greeting() {
   const h = new Date().getHours()
@@ -17,27 +19,12 @@ function greeting() {
   return 'Good evening'
 }
 
-function formatMinutes(value) {
-  const minutes = Math.max(0, Math.floor(Number(value) || 0))
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-
-  if (hours && rest) return `${hours}h ${rest}m`
-  if (hours) return `${hours}h`
-  return `${rest}m`
-}
-
-function progressPercent(book) {
-  if (!book?.totalPages) return 0
-  return Math.min(100, Math.round((book.progress / book.totalPages) * 100))
-}
-
 export default function Home() {
   const navigate = useNavigate()
   const [settings] = useSettings()
-  const [revision, setRevision] = useState(0)
+  const [, setRevision] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
-  const [editingGoal, setEditingGoal] = useState(null)
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
 
   const refresh = () => setRevision((r) => r + 1)
 
@@ -53,29 +40,26 @@ export default function Home() {
   const goalPct = Math.min(100, Math.round((todayPages / dailyGoal) * 100))
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
-  const toggleGoal = (goal, dateKey, completed) => {
+  const toggleGoal = (goal: Goal, dateKey: DateKey, completed: boolean) => {
     goalsStore.markCompleted(goal.id, dateKey, completed)
     refresh()
   }
 
-  const editGoal = (goal) => { setEditingGoal(goal); setFormOpen(true) }
-  const deleteGoal = (goal) => {
+  const editGoal = (goal: Goal) => { setEditingGoal(goal); setFormOpen(true) }
+  const deleteGoal = (goal: Goal) => {
     if (confirm(`Delete "${goal.type}" goal?`)) {
       goalsStore.delete(goal.id)
       refresh()
     }
   }
 
-  const submitForm = (input) => {
+  const submitForm = (input: GoalInput) => {
     if (editingGoal) goalsStore.update(editingGoal.id, input)
     else goalsStore.create(input)
     setFormOpen(false)
     setEditingGoal(null)
     refresh()
   }
-
-  // Force re-render via revision key (state map kept simple)
-  void revision
 
   return (
     <PageContainer>
@@ -174,12 +158,12 @@ export default function Home() {
                 <div className="mt-3">
                   <div className="flex justify-between text-2xs text-text-muted mb-1.5">
                     <span>{currentBook.progress} pages</span>
-                    <span>{progressPercent(currentBook)}%</span>
+                    <span>{bookProgressPercent(currentBook)}%</span>
                   </div>
                   <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-accent rounded-full transition-all duration-700"
-                      style={{ width: `${progressPercent(currentBook)}%` }}
+                      style={{ width: `${bookProgressPercent(currentBook)}%` }}
                     />
                   </div>
                 </div>

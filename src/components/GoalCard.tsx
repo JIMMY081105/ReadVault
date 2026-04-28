@@ -2,8 +2,18 @@ import { CheckCircleIcon } from '@heroicons/react/24/solid'
 import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline'
 import Card from './Card'
 import { GOAL_TYPES, formatGoalTitle, formatRecurrenceLabel } from '../utils/goalTypes'
+import type { DateKey, Goal } from '../types'
 
-export default function GoalCard({ goal, dateKey, completed, onToggle, onEdit, onDelete }) {
+interface GoalCardProps {
+  goal: Goal
+  dateKey: DateKey
+  completed: boolean
+  onToggle?: (goal: Goal, dateKey: DateKey, completed: boolean) => void
+  onEdit?: (goal: Goal) => void
+  onDelete?: (goal: Goal) => void
+}
+
+export default function GoalCard({ goal, dateKey, completed, onToggle, onEdit, onDelete }: GoalCardProps) {
   const meta = GOAL_TYPES[goal.type]
   const recurrenceLabel = formatRecurrenceLabel(goal)
 

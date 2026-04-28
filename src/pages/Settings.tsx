@@ -7,8 +7,15 @@ import {
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import { useSettings } from '../hooks/useSettings'
+import type { IconComponent, ReaderFont, ReaderTheme, LineSpacing } from '../types'
+import type { ReactNode } from 'react'
 
-function Toggle({ enabled, onToggle }) {
+interface ToggleProps {
+  enabled: boolean
+  onToggle: () => void
+}
+
+function Toggle({ enabled, onToggle }: ToggleProps) {
   return (
     <button
       onClick={onToggle}
@@ -25,7 +32,16 @@ function Toggle({ enabled, onToggle }) {
   )
 }
 
-function SettingsRow({ icon: Icon, label, description, right, onClick, danger = false }) {
+interface SettingsRowProps {
+  icon: IconComponent
+  label: string
+  description?: string
+  right?: ReactNode
+  onClick?: () => void
+  danger?: boolean
+}
+
+function SettingsRow({ icon: Icon, label, description, right, onClick, danger = false }: SettingsRowProps) {
   return (
     <button
       onClick={onClick}
@@ -58,7 +74,7 @@ function SettingsRow({ icon: Icon, label, description, right, onClick, danger = 
   )
 }
 
-function SectionHeader({ children }) {
+function SectionHeader({ children }: { children: ReactNode }) {
   return (
     <p className="text-xs font-semibold text-text-muted uppercase tracking-widest px-4 pt-6 pb-2">
       {children}
@@ -74,17 +90,17 @@ const THEMES = [
   { id: 'dark',  label: 'Dark',  swatch: 'bg-black text-white' },
   { id: 'sepia', label: 'Sepia', swatch: 'bg-[#1a150e] text-[#c8a97e]' },
   { id: 'light', label: 'Light', swatch: 'bg-white text-black' },
-]
+] as const satisfies readonly { id: ReaderTheme; label: string; swatch: string }[]
 const FONTS = [
   { id: 'system',       label: 'System',       sample: 'Aa' },
   { id: 'georgia',      label: 'Georgia',      sample: 'Aa', family: 'Georgia, serif' },
   { id: 'merriweather', label: 'Merriweather', sample: 'Aa', family: 'Merriweather, Georgia, serif' },
-]
+] as const satisfies readonly { id: ReaderFont; label: string; sample: string; family?: string }[]
 const SPACINGS = [
   { id: 'compact', label: 'Compact' },
   { id: 'normal',  label: 'Normal'  },
   { id: 'relaxed', label: 'Relaxed' },
-]
+] as const satisfies readonly { id: LineSpacing; label: string }[]
 
 export default function Settings() {
   const [settings, setSettings] = useSettings()
@@ -169,7 +185,7 @@ export default function Settings() {
               <button
                 key={f.id}
                 onClick={() => setSettings({ readerFont: f.id })}
-                style={f.family ? { fontFamily: f.family } : undefined}
+                style={'family' in f ? { fontFamily: f.family } : undefined}
                 className={`
                   flex-1 py-1.5 rounded-xl text-xs font-medium transition-all duration-150
                   border

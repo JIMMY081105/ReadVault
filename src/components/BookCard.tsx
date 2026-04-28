@@ -1,14 +1,18 @@
 import { useNavigate } from 'react-router-dom'
+import type { Book } from '../types'
+import { bookProgressPercent } from '../utils/numbers'
 
 /**
  * Displays a single book in the library grid.
  * `book` shape: { id, title, author, cover, progress, totalPages, genre }
  */
-export default function BookCard({ book }) {
+interface BookCardProps {
+  book: Book
+}
+
+export default function BookCard({ book }: BookCardProps) {
   const navigate = useNavigate()
-  const progressPercent = book.totalPages
-    ? Math.round((book.progress / book.totalPages) * 100)
-    : 0
+  const progressPercent = bookProgressPercent(book)
 
   return (
     <div

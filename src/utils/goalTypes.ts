@@ -157,7 +157,7 @@ export function formatGoalTitle(goal: Pick<Goal, 'type' | 'payload'>): string {
     case 'app_limit': return `${p.appName} — limit ${formatMinutes(p.appLimitMinutes)}`
     case 'quran':     return `Quran ${p.pages} page${Number(p.pages) === 1 ? '' : 's'}${p.juz ? ` · Juz ${p.juz}` : ''}`
     case 'protein':   return `Eat ${p.proteinGrams}g protein`
-    default:          return GOAL_TYPES[goal.type]?.label || 'Goal'
+    default:          return 'Goal'
   }
 }
 
@@ -183,7 +183,7 @@ export function emptyPayloadForType(type: GoalTypeId): GoalPayload {
     case 'salah':
       return { selectedPrayers: [] }
     case 'app_limit':
-      return { appName: TRACKED_APPS[0], appLimitMinutes: '' }
+      return { appName: TRACKED_APPS[0] ?? '抖音', appLimitMinutes: '' }
     case 'quran':
       return { pages: '', juz: '' }
     case 'protein':
@@ -199,5 +199,5 @@ function formatHours(h: unknown): string {
 
 function capitalize(s: unknown): string {
   if (typeof s !== 'string') return ''
-  return s ? s[0].toUpperCase() + s.slice(1) : ''
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''
 }

@@ -1,25 +1,27 @@
 // User settings — persisted to localStorage with a tiny pub/sub so any
 // component using `useSettings` stays in sync.
 
+import type { LineSpacing, ReaderFont, ReaderTheme, Settings } from '../types'
+
 const STORAGE_KEY = 'rv_settings'
 
-export const READER_THEMES = ['dark', 'sepia', 'light']
-export const READER_FONTS = ['system', 'georgia', 'merriweather']
-export const LINE_SPACINGS = ['compact', 'normal', 'relaxed']
+export const READER_THEMES = ['dark', 'sepia', 'light'] as const satisfies readonly ReaderTheme[]
+export const READER_FONTS = ['system', 'georgia', 'merriweather'] as const satisfies readonly ReaderFont[]
+export const LINE_SPACINGS = ['compact', 'normal', 'relaxed'] as const satisfies readonly LineSpacing[]
 
-export const FONT_FAMILY = {
+export const FONT_FAMILY: Record<ReaderFont, string> = {
   system:       '-apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, sans-serif',
   georgia:      'Georgia, "Times New Roman", serif',
   merriweather: 'Merriweather, Georgia, "Times New Roman", serif',
 }
 
-export const LINE_HEIGHT = {
+export const LINE_HEIGHT: Record<LineSpacing, number> = {
   compact: 1.5,
   normal:  1.9,
   relaxed: 2.4,
 }
 
-const DEFAULTS = {
+const DEFAULTS: Settings = {
   darkMode: true,
   readerTheme: 'sepia',     // matches the screenshot's selected state
   readerFont: 'georgia',
@@ -30,21 +32,35 @@ const DEFAULTS = {
   autoSync: false,
 }
 
-function clean(raw) {
-  const out = { ...DEFAULTS, ...(raw || {}) }
-  if (!READER_THEMES.includes(out.readerTheme)) out.readerTheme = DEFAULTS.readerTheme
-  if (!READER_FONTS.includes(out.readerFont)) out.readerFont = DEFAULTS.readerFont
-  if (!LINE_SPACINGS.includes(out.lineSpacing)) out.lineSpacing = DEFAULTS.lineSpacing
-  out.darkMode = Boolean(out.darkMode)
-  out.notifications = Boolean(out.notifications)
-  out.dailyReminder = Boolean(out.dailyReminder)
-  out.autoSync = Boolean(out.autoSync)
-  const goal = Math.floor(Number(out.dailyReadingGoal))
-  out.dailyReadingGoal = Number.isFinite(goal) && goal > 0 ? Math.min(goal, 999) : DEFAULTS.dailyReadingGoal
-  return out
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function load() {
+function pickEnum<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  return allowed.includes(value as T) ? value as T : fallback
+}
+
+function pickBoolean(value: unknown, fallback: boolean): boolean {
+  return value == null ? fallback : Boolean(value)
+}
+
+function clean(raw: unknown): Settings {
+  const input = isRecord(raw) ? raw : {}
+  const goal = Math.floor(Number(input.dailyReadingGoal ?? DEFAULTS.dailyReadingGoal))
+
+  return {
+    darkMode: pickBoolean(input.darkMode, DEFAULTS.darkMode),
+    readerTheme: pickEnum(input.readerTheme, READER_THEMES, DEFAULTS.readerTheme),
+    readerFont: pickEnum(input.readerFont, READER_FONTS, DEFAULTS.readerFont),
+    lineSpacing: pickEnum(input.lineSpacing, LINE_SPACINGS, DEFAULTS.lineSpacing),
+    dailyReadingGoal: Number.isFinite(goal) && goal > 0 ? Math.min(goal, 999) : DEFAULTS.dailyReadingGoal,
+    notifications: pickBoolean(input.notifications, DEFAULTS.notifications),
+    dailyReminder: pickBoolean(input.dailyReminder, DEFAULTS.dailyReminder),
+    autoSync: pickBoolean(input.autoSync, DEFAULTS.autoSync),
+  }
+}
+
+function load(): Settings {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return clean(raw ? JSON.parse(raw) : null)
@@ -54,21 +70,21 @@ function load() {
 }
 
 let current = load()
-const listeners = new Set()
+const listeners = new Set<() => void>()
 
 function emit() {
-  for (const l of listeners) l(current)
+  for (const listener of listeners) listener()
 }
 
 export const settingsStore = {
   get: () => current,
-  set: (patch) => {
+  set: (patch: Partial<Settings>): Settings => {
     current = clean({ ...current, ...patch })
     localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
     emit()
     return current
   },
-  subscribe: (listener) => {
+  subscribe: (listener: () => void): (() => void) => {
     listeners.add(listener)
     return () => listeners.delete(listener)
   },

@@ -18,25 +18,10 @@ import Button from '../components/Button'
 import Card from '../components/Card'
 import { booksStore } from '../db/books'
 import { useSettings } from '../hooks/useSettings'
+import { todayKey } from '../utils/dateKey'
+import { bookProgressPercent, formatMinutes } from '../utils/numbers'
 
 const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
-
-function getLocalDateKey() {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
-}
-
-function formatMinutes(value) {
-  const minutes = Math.max(0, Math.floor(Number(value) || 0))
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-
-  if (hours && rest) return `${hours}h ${rest}m`
-  if (hours) return `${hours}h`
-  return `${rest}m`
-}
 
 export default function Library() {
   const navigate = useNavigate()
@@ -60,8 +45,8 @@ export default function Library() {
     setEditingGoal(false)
   }
   const cancelGoal = () => setEditingGoal(false)
-  const todayKey = getLocalDateKey()
-  const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.pages ?? 0), 0)
+  const currentDateKey = todayKey()
+  const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[currentDateKey]?.pages ?? 0), 0)
   const totalMinutes = books.reduce((sum, book) => sum + (book.timeSpentMinutes ?? 0), 0)
   const finishedBooks = books.filter((book) => book.totalPages && book.progress >= book.totalPages).length
   const stats = [
@@ -263,7 +248,7 @@ export default function Library() {
                   <div className="mt-2 h-1 bg-white/[0.06] rounded-full overflow-hidden">
                     <div
                       className="h-full bg-accent/60 rounded-full"
-                      style={{ width: `${book.totalPages ? Math.round((book.progress / book.totalPages) * 100) : 0}%` }}
+                      style={{ width: `${bookProgressPercent(book)}%` }}
                     />
                   </div>
                 </div>

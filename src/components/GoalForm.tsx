@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import Button from './Button'
 import {
@@ -9,24 +9,28 @@ import {
   FIVE_DAILY_PRAYERS,
   TRACKED_APPS,
   RECURRENCE_OPTIONS,
+  emptyPayloadForType,
   validateGoalInput,
 } from '../utils/goalTypes'
+import type {
+  DateKey,
+  Goal,
+  GoalFormState,
+  GoalInput,
+  GoalPayload,
+  GoalTypeId,
+  GymKind,
+  Option,
+  TrackedApp,
+  ValidationErrors,
+} from '../types'
 
-const EMPTY_PAYLOAD = {
-  gym:       { gymHours: '', gymType: 'anaerobic' },
-  water:     { litres: '' },
-  salah:     { selectedPrayers: [] },
-  app_limit: { appName: TRACKED_APPS[0], appLimitMinutes: '' },
-  quran:     { pages: '', juz: '' },
-  protein:   { proteinGrams: '' },
-}
-
-function buildInitialState(initial, defaultDate) {
+function buildInitialState(initial: Goal | null, defaultDate: DateKey): GoalFormState {
   if (initial) {
     return {
       type: initial.type,
       date: initial.date,
-      payload: { ...EMPTY_PAYLOAD[initial.type], ...(initial.payload || {}) },
+      payload: { ...emptyPayloadForType(initial.type), ...(initial.payload || {}) },
       recurrence: initial.recurrence || 'none',
       recurrenceIntervalDays: initial.recurrenceIntervalDays ?? 2,
       recurrenceEndDate: initial.recurrenceEndDate || '',
@@ -35,16 +39,24 @@ function buildInitialState(initial, defaultDate) {
   return {
     type: 'gym',
     date: defaultDate,
-    payload: { ...EMPTY_PAYLOAD.gym },
+    payload: emptyPayloadForType('gym'),
     recurrence: 'none',
     recurrenceIntervalDays: 2,
     recurrenceEndDate: '',
   }
 }
 
-export default function GoalForm({ open, initial = null, defaultDate, onClose, onSubmit }) {
+interface GoalFormProps {
+  open: boolean
+  initial?: Goal | null
+  defaultDate: DateKey
+  onClose: () => void
+  onSubmit: (input: GoalInput) => void
+}
+
+export default function GoalForm({ open, initial = null, defaultDate, onClose, onSubmit }: GoalFormProps) {
   const [state, setState] = useState(() => buildInitialState(initial, defaultDate))
-  const [errors, setErrors] = useState({})
+  const [errors, setErrors] = useState<ValidationErrors>({})
 
   // Re-seed on open / when editing a different goal
   useEffect(() => {
@@ -56,11 +68,15 @@ export default function GoalForm({ open, initial = null, defaultDate, onClose, o
 
   const isEditing = Boolean(initial)
 
-  const setField = (key, value) => setState((s) => ({ ...s, [key]: value }))
-  const setPayload = (patch) => setState((s) => ({ ...s, payload: { ...s.payload, ...patch } }))
+  const setField = <K extends keyof GoalFormState>(key: K, value: GoalFormState[K]) => {
+    setState((s) => ({ ...s, [key]: value }))
+  }
+  const setPayload = (patch: GoalPayload) => {
+    setState((s) => ({ ...s, payload: { ...s.payload, ...patch } }))
+  }
 
-  const changeType = (type) => {
-    setState((s) => ({ ...s, type, payload: { ...EMPTY_PAYLOAD[type] } }))
+  const changeType = (type: GoalTypeId) => {
+    setState((s) => ({ ...s, type, payload: emptyPayloadForType(type) }))
     setErrors({})
   }
 
@@ -172,10 +188,14 @@ export default function GoalForm({ open, initial = null, defaultDate, onClose, o
   )
 }
 
-function sanitize(state) {
-  const out = { ...state }
-  if (out.recurrenceEndDate === '') out.recurrenceEndDate = null
-  if (out.recurrence !== 'every_n_days') out.recurrenceIntervalDays = null
+function sanitize(state: GoalFormState): GoalInput {
+  const out: GoalInput = {
+    ...state,
+    payload: { ...state.payload },
+    recurrenceEndDate: state.recurrenceEndDate || null,
+    recurrenceIntervalDays: state.recurrence === 'every_n_days' ? state.recurrenceIntervalDays : null,
+  }
+
   // Trim juz to a number or null
   if (out.type === 'quran') {
     const j = out.payload.juz
@@ -186,7 +206,14 @@ function sanitize(state) {
 
 // ── Type-specific subforms ──────────────────────────────────────────────────
 
-function TypeFields({ type, payload, setPayload, errors }) {
+interface TypeFieldsProps {
+  type: GoalTypeId
+  payload: GoalPayload
+  setPayload: (patch: GoalPayload) => void
+  errors: ValidationErrors
+}
+
+function TypeFields({ type, payload, setPayload, errors }: TypeFieldsProps) {
   switch (type) {
     case 'gym':
       return (
@@ -201,7 +228,7 @@ function TypeFields({ type, payload, setPayload, errors }) {
           </Field>
           <Field label="Type" error={errors.gymType}>
             <SegmentedControl
-              value={payload.gymType}
+              value={(payload.gymType || 'anaerobic') as GymKind}
               onChange={(v) => setPayload({ gymType: v })}
               options={GYM_KINDS.map((k) => ({ id: k, label: capitalize(k) }))}
             />
@@ -249,7 +276,7 @@ function TypeFields({ type, payload, setPayload, errors }) {
           </div>
           <button
             type="button"
-            onClick={() => setPayload({ selectedPrayers: FIVE_DAILY_PRAYERS })}
+            onClick={() => setPayload({ selectedPrayers: [...FIVE_DAILY_PRAYERS] })}
             className="text-2xs text-accent hover:text-accent/80"
           >
             + Add all 5 daily prayers
@@ -261,7 +288,7 @@ function TypeFields({ type, payload, setPayload, errors }) {
         <>
           <Field label="App" error={errors.appName}>
             <SegmentedControl
-              value={payload.appName}
+              value={(payload.appName || TRACKED_APPS[0] || '抖音') as TrackedApp}
               onChange={(v) => setPayload({ appName: v })}
               options={TRACKED_APPS.map((a) => ({ id: a, label: a }))}
             />
@@ -316,7 +343,14 @@ function TypeFields({ type, payload, setPayload, errors }) {
 
 // ── Form primitives ─────────────────────────────────────────────────────────
 
-function Field({ label, error, hint, children }) {
+interface FieldProps {
+  label: string
+  error?: string | undefined
+  hint?: string | undefined
+  children: ReactNode
+}
+
+function Field({ label, error, hint, children }: FieldProps) {
   return (
     <label className="block">
       <span className="block text-2xs font-semibold text-text-muted uppercase tracking-widest mb-2">
@@ -333,7 +367,15 @@ const inputClass =
   'w-full bg-surface-2 border border-white/[0.07] rounded-xl px-3 py-2.5 text-sm text-text-primary ' +
   'focus:outline-none focus:border-accent/60 focus:bg-surface-3 transition-colors'
 
-function NumberInput({ value, onChange, min, max, step }) {
+interface NumberInputProps {
+  value: number | string | null | undefined
+  onChange: (value: number | string) => void
+  min: number
+  max?: number
+  step: number
+}
+
+function NumberInput({ value, onChange, min, max, step }: NumberInputProps) {
   return (
     <input
       type="number"
@@ -348,7 +390,13 @@ function NumberInput({ value, onChange, min, max, step }) {
   )
 }
 
-function DateInput({ value, onChange, min }) {
+interface DateInputProps {
+  value: DateKey | '' | null
+  onChange: (value: DateKey) => void
+  min?: DateKey
+}
+
+function DateInput({ value, onChange, min }: DateInputProps) {
   return (
     <input
       type="date"
@@ -361,11 +409,17 @@ function DateInput({ value, onChange, min }) {
   )
 }
 
-function Select({ value, onChange, options }) {
+interface SelectProps<T extends string> {
+  value: T
+  onChange: (value: T) => void
+  options: readonly Option<T>[]
+}
+
+function Select<T extends string>({ value, onChange, options }: SelectProps<T>) {
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(e.target.value as T)}
       className={`${inputClass} appearance-none`}
       style={{ colorScheme: 'dark' }}
     >
@@ -376,7 +430,13 @@ function Select({ value, onChange, options }) {
   )
 }
 
-function SegmentedControl({ value, onChange, options }) {
+interface SegmentedControlProps<T extends string> {
+  value: T
+  onChange: (value: T) => void
+  options: readonly Option<T>[]
+}
+
+function SegmentedControl<T extends string>({ value, onChange, options }: SegmentedControlProps<T>) {
   return (
     <div className="flex bg-surface-2 border border-white/[0.07] rounded-xl p-1 gap-1">
       {options.map((o) => {
@@ -399,4 +459,4 @@ function SegmentedControl({ value, onChange, options }) {
   )
 }
 
-function capitalize(s) { return s ? s[0].toUpperCase() + s.slice(1) : '' }
+function capitalize(s: string) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : '' }

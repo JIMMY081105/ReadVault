@@ -1,8 +1,15 @@
 // Minimal book metadata store — persisted to localStorage as compact JSON.
 // No images: covers are CSS gradient strings (~60 bytes each vs ~60KB for a jpeg).
 
+import type { Book, DailyReadingStats, DateKey } from '../types'
+import { todayKey } from '../utils/dateKey'
+import { clampInteger, toPositiveInteger } from '../utils/numbers'
+
 const STORAGE_KEY = 'rv_books'
 const RETIRED_BOOK_IDS = new Set(['pragmatic', 'atomic-habits', 'deep-work'])
+
+type SeedBook = Omit<Book, 'timeSpentMinutes' | 'dailyStats' | 'cover'> & { cover?: string }
+type RawBook = Partial<Book> & { id: string }
 
 // User-requested seed books.
 const SEED_BOOKS = [
@@ -30,49 +37,70 @@ const SEED_BOOKS = [
     description: 'A thought-provoking exploration of the big questions: Who are we? Why are we here?',
     year: 2006,
   },
-]
+] satisfies SeedBook[]
 
-function todayKey() {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 }
 
-function clampNumber(value, min, max) {
-  const n = Math.floor(Number(value) || 0)
-  return Math.max(min, Math.min(n, max))
+function isRawBook(value: unknown): value is RawBook {
+  return isRecord(value) && typeof value.id === 'string'
 }
 
-function normalizeBook(book, seed = null) {
+function normalizeDailyStats(value: unknown): Record<DateKey, DailyReadingStats> {
+  if (!isRecord(value)) return {}
+
+  const stats: Record<DateKey, DailyReadingStats> = {}
+  for (const [key, day] of Object.entries(value)) {
+    if (!isRecord(day)) continue
+    stats[key] = {
+      pages: toPositiveInteger(day.pages),
+      timeMinutes: toPositiveInteger(day.timeMinutes),
+    }
+  }
+  return stats
+}
+
+function normalizeBook(book: RawBook | SeedBook, seed?: SeedBook): Book {
   const merged = seed ? { ...book, ...seed } : { ...book }
-  const totalPages = Math.max(0, Math.floor(Number(merged.totalPages) || 0))
-  const progress = clampNumber(book.progress, 0, totalPages)
-  const timeSpentMinutes = Math.max(0, Math.floor(Number(book.timeSpentMinutes) || 0))
+  const totalPages = toPositiveInteger(merged.totalPages)
+  const progress = clampInteger(book.progress, 0, totalPages)
+  const timeSpentMinutes = toPositiveInteger('timeSpentMinutes' in book ? book.timeSpentMinutes : 0)
 
   return {
-    ...merged,
+    id: merged.id,
+    title: merged.title || 'Untitled',
+    author: merged.author || 'Unknown author',
+    genre: merged.genre || 'General',
+    language: merged.language || 'en',
     totalPages,
     progress,
+    gradient: merged.gradient || 'bg-gradient-to-br from-indigo-900/80 to-purple-900/80',
+    description: merged.description || '',
+    year: toPositiveInteger(merged.year),
+    ...(merged.cover ? { cover: merged.cover } : {}),
     timeSpentMinutes,
-    dailyStats: book.dailyStats && typeof book.dailyStats === 'object' ? book.dailyStats : {},
+    dailyStats: normalizeDailyStats('dailyStats' in book ? book.dailyStats : undefined),
   }
 }
 
-function load() {
+function load(): RawBook[] | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
-    if (raw) return JSON.parse(raw)
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed.filter(isRawBook) : null
+    }
   } catch { /* corrupt storage — fall through to seed */ }
   return null
 }
 
-function save(books) {
+function save(books: Book[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(books))
 }
 
 // Merge: seed books always exist; stored books keep their progress
-function init() {
+function init(): Book[] {
   const stored = load()
   if (!stored) {
     const seeded = SEED_BOOKS.map((book) => normalizeBook(book, book))
@@ -96,45 +124,51 @@ function init() {
 export const booksStore = {
   getAll: () => init(),
 
-  getById: (id) => init().find((b) => b.id === id) ?? null,
+  getById: (id?: string): Book | null => init().find((b) => b.id === id) ?? null,
 
-  updateProgress: (id, progress) => {
+  updateProgress: (id: string, progress: number): Book | null => {
     const books = init()
     const book = books.find((b) => b.id === id)
     if (book) {
-      book.progress = clampNumber(progress, 0, book.totalPages)
+      book.progress = clampInteger(progress, 0, book.totalPages)
       save(books)
       return book
     }
     return null
   },
 
-  addReadingSession: (id, { pages = 0, minutes = 0, date = todayKey() } = {}) => {
+  addReadingSession: (
+    id: string | undefined,
+    { pages = 0, minutes = 0, date = todayKey() }: { pages?: number; minutes?: number; date?: DateKey } = {},
+  ): Book | null => {
     const books = init()
     const book = books.find((b) => b.id === id)
     if (!book) return null
 
     const remainingPages = Math.max(0, book.totalPages - book.progress)
-    const pagesToAdd = clampNumber(pages, 0, remainingPages)
-    const minutesToAdd = Math.max(0, Math.floor(Number(minutes) || 0))
+    const pagesToAdd = clampInteger(pages, 0, remainingPages)
+    const minutesToAdd = toPositiveInteger(minutes)
 
     book.progress += pagesToAdd
-    book.timeSpentMinutes = Math.max(0, Math.floor(Number(book.timeSpentMinutes) || 0)) + minutesToAdd
-    book.dailyStats = book.dailyStats && typeof book.dailyStats === 'object' ? book.dailyStats : {}
+    book.timeSpentMinutes = toPositiveInteger(book.timeSpentMinutes) + minutesToAdd
     const day = book.dailyStats[date] ?? { pages: 0, timeMinutes: 0 }
     book.dailyStats[date] = {
-      pages: Math.max(0, Math.floor(Number(day.pages) || 0)) + pagesToAdd,
-      timeMinutes: Math.max(0, Math.floor(Number(day.timeMinutes) || 0)) + minutesToAdd,
+      pages: toPositiveInteger(day.pages) + pagesToAdd,
+      timeMinutes: toPositiveInteger(day.timeMinutes) + minutesToAdd,
     }
 
     save(books)
     return book
   },
 
-  add: (book) => {
+  add: (book: RawBook): Book | null => {
     const books = init()
-    if (!books.find((b) => b.id === book.id)) { books.unshift(book); save(books) }
+    if (books.find((b) => b.id === book.id)) return null
+    const normalized = normalizeBook(book)
+    books.unshift(normalized)
+    save(books)
+    return normalized
   },
 
-  remove: (id) => { save(init().filter((b) => b.id !== id)) },
+  remove: (id: string): void => { save(init().filter((b) => b.id !== id)) },
 }

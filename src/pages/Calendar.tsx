@@ -6,23 +6,24 @@ import GoalCard from '../components/GoalCard'
 import GoalForm from '../components/GoalForm'
 import { goalsStore } from '../db/goals'
 import { toDateKey, todayKey, formatPrettyDate } from '../utils/dateKey'
+import type { DateKey, Goal, GoalInput } from '../types'
 
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
-function getDaysInMonth(year, month) {
+function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
 }
 
-function getFirstDayOfMonth(year, month) {
+function getFirstDayOfMonth(year: number, month: number): number {
   return new Date(year, month, 1).getDay()
 }
 
 export default function Calendar() {
   const now = new Date()
   const [viewDate, setViewDate] = useState({ year: now.getFullYear(), month: now.getMonth() })
-  const [selectedKey, setSelectedKey] = useState(todayKey())
+  const [selectedKey, setSelectedKey] = useState<DateKey>(todayKey())
   const [formOpen, setFormOpen] = useState(false)
-  const [editingGoal, setEditingGoal] = useState(null)
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
   const [revision, setRevision] = useState(0)
 
   const refresh = () => setRevision((r) => r + 1)
@@ -37,7 +38,7 @@ export default function Calendar() {
   // All goals — used to mark dots on the calendar grid for the visible month.
   const allGoals = goalsStore.getAll()
   const daysWithGoals = useMemo(() => {
-    const set = new Set()
+    const set = new Set<number>()
     for (let d = 1; d <= daysInMonth; d++) {
       const key = toDateKey(new Date(year, month, d))
       if (allGoals.some((g) => goalsStore.isActiveOn(g, key))) set.add(d)
@@ -55,16 +56,16 @@ export default function Calendar() {
     month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 }
   )
 
-  const cells = []
+  const cells: Array<number | null> = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const toggleGoal = (goal, dateKey, completed) => {
+  const toggleGoal = (goal: Goal, dateKey: DateKey, completed: boolean) => {
     goalsStore.markCompleted(goal.id, dateKey, completed)
     refresh()
   }
-  const editGoal = (goal) => { setEditingGoal(goal); setFormOpen(true) }
-  const deleteGoal = (goal) => {
+  const editGoal = (goal: Goal) => { setEditingGoal(goal); setFormOpen(true) }
+  const deleteGoal = (goal: Goal) => {
     if (!goal.recurrence || goal.recurrence === 'none') {
       if (confirm('Delete this goal?')) {
         goalsStore.delete(goal.id)
@@ -89,7 +90,7 @@ export default function Calendar() {
     }
   }
 
-  const submitForm = (input) => {
+  const submitForm = (input: GoalInput) => {
     if (editingGoal) goalsStore.update(editingGoal.id, input)
     else goalsStore.create(input)
     setFormOpen(false)

@@ -1,7 +1,9 @@
 // Book content store — bundled as JS (gzip-compressed in the build, ~1KB per book).
 // Content is structured as chapters with title + body paragraphs.
 
-const CONTENT = {
+import type { BookContent } from '../types'
+
+const CONTENT: Record<string, BookContent> = {
 
   // ─── 人工智能之不能 ─────────────────────────────────────────────────────────
   'ai-neng': {
@@ -67,11 +69,13 @@ const CONTENT = {
   },
 }
 
-export function getContent(bookId) {
+export function getContent(bookId?: string): BookContent | null {
+  if (!bookId) return null
   return CONTENT[bookId] ?? null
 }
 
-export function getChapter(bookId, chapterIndex = 0) {
+export function getChapter(bookId?: string, chapterIndex = 0) {
+  if (!bookId) return null
   const book = CONTENT[bookId]
   if (!book) return null
   return book.chapters[chapterIndex] ?? book.chapters[0]
