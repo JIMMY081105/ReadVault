@@ -140,6 +140,24 @@ export default function Reader() {
     setThemeIdx(themeIndexById(settings.readerTheme))
   }, [settings.readerTheme])
 
+  // Reader has its own theme system (Dark / Sepia / Light) and shouldn't be
+  // re-skinned by the app-wide light-mode CSS overrides. Suppress them while
+  // mounted; restore on unmount so MainLayout's effect re-applies normally.
+  useEffect(() => {
+    const root = document.documentElement
+    const wasLight = root.classList.contains('light')
+    if (wasLight) {
+      root.classList.remove('light')
+      root.classList.add('dark')
+    }
+    return () => {
+      if (wasLight) {
+        root.classList.remove('dark')
+        root.classList.add('light')
+      }
+    }
+  }, [])
+
   const content = getContent(id)
   const introduction = content?.chapters?.[0] ?? null
   const currentTheme = THEMES[themeIdx]
