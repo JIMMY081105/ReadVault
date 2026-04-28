@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ChevronLeftIcon,
@@ -13,14 +13,21 @@ import {
 import { BookmarkIcon as BookmarkSolid } from '@heroicons/react/24/solid'
 import { booksStore } from '../db/books'
 import { getContent } from '../db/content'
+import { useSettings } from '../hooks/useSettings'
+import { FONT_FAMILY, LINE_HEIGHT } from '../db/settings'
 
 const FONT_SIZES = [14, 16, 18, 20, 22]
 
 const THEMES = [
-  { id: 'dark', bg: 'bg-black', text: 'text-[#e8e8e8]', label: 'Dark' },
-  { id: 'sepia', bg: 'bg-[#1a150e]', text: 'text-[#c8a97e]', label: 'Sepia' },
-  { id: 'slate', bg: 'bg-[#0f1117]', text: 'text-[#cbd5e1]', label: 'Slate' },
+  { id: 'dark',  bg: 'bg-black',         text: 'text-[#e8e8e8]', label: 'Dark'  },
+  { id: 'sepia', bg: 'bg-[#1a150e]',     text: 'text-[#c8a97e]', label: 'Sepia' },
+  { id: 'light', bg: 'bg-[#fafafa]',     text: 'text-[#1a1a1a]', label: 'Light' },
 ]
+
+function themeIndexById(id) {
+  const i = THEMES.findIndex((t) => t.id === id)
+  return i === -1 ? 0 : i
+}
 
 function getLocalDateKey() {
   const now = new Date()
@@ -118,14 +125,20 @@ export default function Reader() {
   const { id } = useParams()
   const navigate = useNavigate()
 
+  const [settings, setSettings] = useSettings()
   const [bookState, setBookState] = useState(() => booksStore.getById(id))
   const [fontIdx, setFontIdx] = useState(1)
-  const [themeIdx, setThemeIdx] = useState(0)
+  const [themeIdx, setThemeIdx] = useState(() => themeIndexById(settings.readerTheme))
   const [bookmarked, setBookmarked] = useState(false)
   const [showControls, setShowControls] = useState(true)
   const [showSettings, setShowSettings] = useState(false)
   const [pageEntry, setPageEntry] = useState('')
   const [timeEntry, setTimeEntry] = useState('')
+
+  // Keep the Reader's theme in sync if the user changes it from Settings.
+  useEffect(() => {
+    setThemeIdx(themeIndexById(settings.readerTheme))
+  }, [settings.readerTheme])
 
   const content = getContent(id)
   const introduction = content?.chapters?.[0] ?? null
@@ -351,7 +364,11 @@ export default function Reader() {
 
                 <div
                   className={`reading-text ${currentTheme.text} space-y-6`}
-                  style={{ fontSize: `${currentFontSize}px` }}
+                  style={{
+                    fontSize: `${currentFontSize}px`,
+                    fontFamily: FONT_FAMILY[settings.readerFont],
+                    lineHeight: LINE_HEIGHT[settings.lineSpacing],
+                  }}
                 >
                   {introduction.paragraphs.map((para, i) => (
                     <p key={i} className="opacity-90 leading-relaxed">{para}</p>
@@ -423,7 +440,7 @@ export default function Reader() {
               {THEMES.map((t, i) => (
                 <button
                   key={t.id}
-                  onClick={() => setThemeIdx(i)}
+                  onClick={() => { setThemeIdx(i); setSettings({ readerTheme: t.id }) }}
                   className={`
                     flex-1 py-3 rounded-2xl text-xs font-semibold transition-all
                     ${t.bg} ${t.text}

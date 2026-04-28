@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   SunIcon, MoonIcon, DevicePhoneMobileIcon, BellIcon,
   BookOpenIcon, ArrowPathIcon, ShieldCheckIcon,
@@ -7,6 +6,7 @@ import {
 } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
+import { useSettings } from '../hooks/useSettings'
 
 function Toggle({ enabled, onToggle }) {
   return (
@@ -70,19 +70,28 @@ function Divider() {
   return <div className="h-px bg-white/[0.05] mx-4" />
 }
 
-const THEMES = ['Dark', 'Sepia', 'Light']
-const FONTS = ['System', 'Georgia', 'Merriweather']
+const THEMES = [
+  { id: 'dark',  label: 'Dark',  swatch: 'bg-black text-white' },
+  { id: 'sepia', label: 'Sepia', swatch: 'bg-[#1a150e] text-[#c8a97e]' },
+  { id: 'light', label: 'Light', swatch: 'bg-white text-black' },
+]
+const FONTS = [
+  { id: 'system',       label: 'System',       sample: 'Aa' },
+  { id: 'georgia',      label: 'Georgia',      sample: 'Aa', family: 'Georgia, serif' },
+  { id: 'merriweather', label: 'Merriweather', sample: 'Aa', family: 'Merriweather, Georgia, serif' },
+]
+const SPACINGS = [
+  { id: 'compact', label: 'Compact' },
+  { id: 'normal',  label: 'Normal'  },
+  { id: 'relaxed', label: 'Relaxed' },
+]
 
 export default function Settings() {
-  const [darkMode, setDarkMode] = useState(true)
-  const [notifications, setNotifications] = useState(true)
-  const [dailyReminder, setDailyReminder] = useState(true)
-  const [autoSync, setAutoSync] = useState(false)
-  const [selectedTheme, setSelectedTheme] = useState(0)
-  const [selectedFont, setSelectedFont] = useState(0)
-  const [lineSpacing, setLineSpacing] = useState(1) // 0=compact 1=normal 2=relaxed
-
-  const SPACINGS = ['Compact', 'Normal', 'Relaxed']
+  const [settings, setSettings] = useSettings()
+  const {
+    darkMode, notifications, dailyReminder, autoSync,
+    readerTheme, readerFont, lineSpacing,
+  } = settings
 
   return (
     <PageContainer flush className="!pt-14">
@@ -113,8 +122,8 @@ export default function Settings() {
         <SettingsRow
           icon={darkMode ? MoonIcon : SunIcon}
           label="Dark Mode"
-          description="AMOLED black interface"
-          right={<Toggle enabled={darkMode} onToggle={() => setDarkMode(!darkMode)} />}
+          description={darkMode ? 'AMOLED black interface' : 'Light interface'}
+          right={<Toggle enabled={darkMode} onToggle={() => setSettings({ darkMode: !darkMode })} />}
         />
         <Divider />
 
@@ -127,17 +136,17 @@ export default function Settings() {
             <p className="text-sm font-medium text-text-primary flex-1">Reader Theme</p>
           </div>
           <div className="flex gap-2 ml-11">
-            {THEMES.map((t, i) => (
+            {THEMES.map((t) => (
               <button
-                key={t}
-                onClick={() => setSelectedTheme(i)}
+                key={t.id}
+                onClick={() => setSettings({ readerTheme: t.id })}
                 className={`
                   flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-150
-                  ${i === 0 ? 'bg-black text-white' : i === 1 ? 'bg-[#1a150e] text-[#c8a97e]' : 'bg-white text-black'}
-                  ${selectedTheme === i ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : 'opacity-60'}
+                  ${t.swatch}
+                  ${readerTheme === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : 'opacity-60'}
                 `}
               >
-                {t}
+                {t.label}
               </button>
             ))}
           </div>
@@ -156,20 +165,21 @@ export default function Settings() {
             <p className="text-sm font-medium text-text-primary flex-1">Reading Font</p>
           </div>
           <div className="flex gap-2 ml-11">
-            {FONTS.map((f, i) => (
+            {FONTS.map((f) => (
               <button
-                key={f}
-                onClick={() => setSelectedFont(i)}
+                key={f.id}
+                onClick={() => setSettings({ readerFont: f.id })}
+                style={f.family ? { fontFamily: f.family } : undefined}
                 className={`
                   flex-1 py-1.5 rounded-xl text-xs font-medium transition-all duration-150
                   border
-                  ${selectedFont === i
+                  ${readerFont === f.id
                     ? 'bg-accent/15 border-accent/40 text-accent'
                     : 'bg-white/[0.04] border-white/[0.06] text-text-muted'
                   }
                 `}
               >
-                {f}
+                {f.label}
               </button>
             ))}
           </div>
@@ -186,19 +196,19 @@ export default function Settings() {
             <p className="text-sm font-medium text-text-primary flex-1">Line Spacing</p>
           </div>
           <div className="flex gap-2 ml-11">
-            {SPACINGS.map((s, i) => (
+            {SPACINGS.map((s) => (
               <button
-                key={s}
-                onClick={() => setLineSpacing(i)}
+                key={s.id}
+                onClick={() => setSettings({ lineSpacing: s.id })}
                 className={`
                   flex-1 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 border
-                  ${lineSpacing === i
+                  ${lineSpacing === s.id
                     ? 'bg-accent/15 border-accent/40 text-accent'
                     : 'bg-white/[0.04] border-white/[0.06] text-text-muted'
                   }
                 `}
               >
-                {s}
+                {s.label}
               </button>
             ))}
           </div>
@@ -211,14 +221,14 @@ export default function Settings() {
         <SettingsRow
           icon={BellIcon}
           label="Push Notifications"
-          right={<Toggle enabled={notifications} onToggle={() => setNotifications(!notifications)} />}
+          right={<Toggle enabled={notifications} onToggle={() => setSettings({ notifications: !notifications })} />}
         />
         <Divider />
         <SettingsRow
           icon={DevicePhoneMobileIcon}
           label="Daily Reading Reminder"
           description="9:00 PM every day"
-          right={<Toggle enabled={dailyReminder} onToggle={() => setDailyReminder(!dailyReminder)} />}
+          right={<Toggle enabled={dailyReminder} onToggle={() => setSettings({ dailyReminder: !dailyReminder })} />}
         />
       </Card>
 
@@ -229,7 +239,7 @@ export default function Settings() {
           icon={ArrowPathIcon}
           label="Auto Sync"
           description="Sync library across devices"
-          right={<Toggle enabled={autoSync} onToggle={() => setAutoSync(!autoSync)} />}
+          right={<Toggle enabled={autoSync} onToggle={() => setSettings({ autoSync: !autoSync })} />}
         />
         <Divider />
         <SettingsRow
