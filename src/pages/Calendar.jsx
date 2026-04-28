@@ -1,21 +1,13 @@
-import { useState } from 'react'
-import { ChevronLeftIcon, ChevronRightIcon, BookOpenIcon } from '@heroicons/react/24/outline'
-import { CheckCircleIcon } from '@heroicons/react/24/solid'
+import { useMemo, useState } from 'react'
+import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
+import GoalCard from '../components/GoalCard'
+import GoalForm from '../components/GoalForm'
+import { goalsStore } from '../db/goals'
+import { toDateKey, todayKey, formatPrettyDate } from '../utils/dateKey'
 
 const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-
-// Days with reading activity (for the current month placeholder)
-const READ_DAYS = new Set([1, 2, 3, 5, 6, 8, 9, 10, 12, 15, 16, 17, 19, 21, 22, 23])
-const TODAY = 24
-
-const TASKS = [
-  { id: 1, title: 'Read introduction', book: 'Here I Am!', pages: 12, done: false, time: 'Today' },
-  { id: 2, title: 'Daily goal: 30 pages', book: 'Library', pages: 30, done: false, time: 'Today' },
-  { id: 3, title: 'Log reading time', book: 'Here I Am!', pages: null, done: true, time: 'Yesterday' },
-  { id: 4, title: 'Continue introduction', book: 'Library', pages: 20, done: false, time: 'Tomorrow' },
-]
 
 function getDaysInMonth(year, month) {
   return new Date(year, month + 1, 0).getDate()
@@ -28,12 +20,33 @@ function getFirstDayOfMonth(year, month) {
 export default function Calendar() {
   const now = new Date()
   const [viewDate, setViewDate] = useState({ year: now.getFullYear(), month: now.getMonth() })
+  const [selectedKey, setSelectedKey] = useState(todayKey())
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingGoal, setEditingGoal] = useState(null)
+  const [revision, setRevision] = useState(0)
+
+  const refresh = () => setRevision((r) => r + 1)
+  void revision
 
   const { year, month } = viewDate
   const daysInMonth = getDaysInMonth(year, month)
   const firstDay = getFirstDayOfMonth(year, month)
-
   const monthName = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const todayK = todayKey()
+
+  // All goals — used to mark dots on the calendar grid for the visible month.
+  const allGoals = goalsStore.getAll()
+  const daysWithGoals = useMemo(() => {
+    const set = new Set()
+    for (let d = 1; d <= daysInMonth; d++) {
+      const key = toDateKey(new Date(year, month, d))
+      if (allGoals.some((g) => goalsStore.isActiveOn(g, key))) set.add(d)
+    }
+    return set
+  }, [allGoals, year, month, daysInMonth, revision])
+
+  const selectedGoals = goalsStore.getForDate(selectedKey)
+  const selectedCompletedCount = selectedGoals.filter((g) => goalsStore.isCompletedOn(g, selectedKey)).length
 
   const prevMonth = () => setViewDate(({ year, month }) =>
     month === 0 ? { year: year - 1, month: 11 } : { year, month: month - 1 }
@@ -42,12 +55,47 @@ export default function Calendar() {
     month === 11 ? { year: year + 1, month: 0 } : { year, month: month + 1 }
   )
 
-  // Build calendar grid
   const cells = []
   for (let i = 0; i < firstDay; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
 
-  const isCurrentMonth = year === now.getFullYear() && month === now.getMonth()
+  const toggleGoal = (goal, dateKey, completed) => {
+    goalsStore.markCompleted(goal.id, dateKey, completed)
+    refresh()
+  }
+  const editGoal = (goal) => { setEditingGoal(goal); setFormOpen(true) }
+  const deleteGoal = (goal) => {
+    if (!goal.recurrence || goal.recurrence === 'none') {
+      if (confirm('Delete this goal?')) {
+        goalsStore.delete(goal.id)
+        refresh()
+      }
+      return
+    }
+    // Recurring: offer stop-from-today vs full delete
+    const choice = prompt(
+      'This is a repeating goal. Type "stop" to stop it from today onward, or "delete" to remove it entirely.',
+      'stop',
+    )
+    if (choice === 'stop') {
+      // End yesterday so today and future occurrences stop appearing.
+      const y = new Date()
+      y.setDate(y.getDate() - 1)
+      goalsStore.stopRecurring(goal.id, toDateKey(y))
+      refresh()
+    } else if (choice === 'delete') {
+      goalsStore.delete(goal.id)
+      refresh()
+    }
+  }
+
+  const submitForm = (input) => {
+    if (editingGoal) goalsStore.update(editingGoal.id, input)
+    else goalsStore.create(input)
+    setFormOpen(false)
+    setEditingGoal(null)
+    refresh()
+  }
 
   return (
     <PageContainer>
@@ -72,40 +120,41 @@ export default function Calendar() {
 
       {/* Calendar Grid */}
       <Card variant="surface" className="mb-6 !p-4">
-        {/* Day labels */}
         <div className="grid grid-cols-7 mb-2">
           {DAYS.map((d, i) => (
             <div key={i} className="text-center text-2xs font-semibold text-text-muted py-1">{d}</div>
           ))}
         </div>
 
-        {/* Date cells */}
         <div className="grid grid-cols-7 gap-y-1">
           {cells.map((day, i) => {
             if (!day) return <div key={`empty-${i}`} />
 
-            const isToday = isCurrentMonth && day === TODAY
-            const hasReading = isCurrentMonth && READ_DAYS.has(day)
-            const isPast = isCurrentMonth && day < TODAY
+            const cellKey = toDateKey(new Date(year, month, day))
+            const isToday = cellKey === todayK
+            const isSelected = cellKey === selectedKey
+            const hasGoals = daysWithGoals.has(day)
 
             return (
               <div key={day} className="flex flex-col items-center py-1">
                 <button
+                  onClick={() => setSelectedKey(cellKey)}
                   className={`
                     w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
                     transition-all duration-150 active:scale-90
-                    ${isToday
+                    ${isSelected
                       ? 'bg-accent text-black font-bold shadow-glow-sm'
-                      : hasReading
-                        ? 'text-text-primary hover:bg-white/[0.06]'
-                        : 'text-text-muted hover:bg-white/[0.04]'
+                      : isToday
+                        ? 'ring-1 ring-accent/60 text-text-primary hover:bg-white/[0.06]'
+                        : hasGoals
+                          ? 'text-text-primary hover:bg-white/[0.06]'
+                          : 'text-text-muted hover:bg-white/[0.04]'
                     }
                   `}
                 >
                   {day}
                 </button>
-                {/* Reading dot */}
-                {hasReading && !isToday && (
+                {hasGoals && !isSelected && (
                   <span className="w-1 h-1 rounded-full bg-accent/60 mt-0.5" />
                 )}
               </div>
@@ -113,88 +162,74 @@ export default function Calendar() {
           })}
         </div>
 
-        {/* Legend */}
         <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/[0.05]">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-accent" />
-            <span className="text-2xs text-text-muted">Today</span>
+            <span className="text-2xs text-text-muted">Selected</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-accent/60" />
-            <span className="text-2xs text-text-muted">Read</span>
+            <span className="text-2xs text-text-muted">Has goals</span>
           </div>
         </div>
       </Card>
 
-      {/* Reading Streak */}
-      <div className="flex gap-3 mb-6">
-        <Card variant="surface" className="flex-1 !p-3 text-center">
-          <p className="text-2xl font-bold text-accent">7</p>
-          <p className="text-xs text-text-muted mt-0.5">Day streak</p>
-        </Card>
-        <Card variant="surface" className="flex-1 !p-3 text-center">
-          <p className="text-2xl font-bold text-text-primary">{READ_DAYS.size}</p>
-          <p className="text-xs text-text-muted mt-0.5">Days this month</p>
-        </Card>
-        <Card variant="surface" className="flex-1 !p-3 text-center">
-          <p className="text-2xl font-bold text-text-primary">6h</p>
-          <p className="text-xs text-text-muted mt-0.5">This week</p>
-        </Card>
-      </div>
-
-      {/* Reading Tasks */}
+      {/* Goals for the selected date */}
       <section>
-        <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
-          Reading Tasks
-        </h2>
-
-        <div className="space-y-2.5">
-          {TASKS.map((task) => (
-            <Card
-              key={task.id}
-              variant="surface"
-              padding={false}
-              className={task.done ? 'opacity-50' : ''}
-            >
-              <div className="flex items-start gap-3 p-3.5">
-                {/* Check icon */}
-                <div className="flex-shrink-0 mt-0.5">
-                  {task.done ? (
-                    <CheckCircleIcon className="w-5 h-5 text-success" />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full border-2 border-white/20" />
-                  )}
-                </div>
-
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium leading-snug ${task.done ? 'line-through text-text-muted' : 'text-text-primary'}`}>
-                    {task.title}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <BookOpenIcon className="w-3 h-3 text-text-muted flex-shrink-0" />
-                    <span className="text-2xs text-text-muted truncate">{task.book}</span>
-                    {task.pages && (
-                      <>
-                        <span className="text-text-muted">·</span>
-                        <span className="text-2xs text-text-muted">{task.pages}p</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Time badge */}
-                <span className={`
-                  flex-shrink-0 text-2xs font-medium px-2 py-0.5 rounded-full
-                  ${task.time === 'Today' ? 'bg-accent/15 text-accent' : 'bg-white/[0.06] text-text-muted'}
-                `}>
-                  {task.time}
-                </span>
-              </div>
-            </Card>
-          ))}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest">
+              Goals
+            </h2>
+            <p className="text-sm text-text-primary font-medium mt-0.5">
+              {formatPrettyDate(selectedKey)}
+              {selectedKey === todayK && (
+                <span className="ml-2 text-2xs text-accent font-semibold uppercase tracking-wider">Today</span>
+              )}
+            </p>
+          </div>
+          <button
+            onClick={() => { setEditingGoal(null); setFormOpen(true) }}
+            className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80"
+          >
+            <PlusIcon className="w-4 h-4" /> New
+          </button>
         </div>
+
+        {selectedGoals.length === 0 ? (
+          <Card variant="surface" className="text-center py-6">
+            <p className="text-sm text-text-secondary">No goals for this day.</p>
+            <p className="text-2xs text-text-muted mt-1">Tap "New" to add one.</p>
+          </Card>
+        ) : (
+          <>
+            <p className="text-2xs text-text-muted mb-2">
+              {selectedCompletedCount} of {selectedGoals.length} done
+            </p>
+            <div className="space-y-2.5">
+              {selectedGoals.map((g) => (
+                <GoalCard
+                  key={g.id}
+                  goal={g}
+                  dateKey={selectedKey}
+                  completed={goalsStore.isCompletedOn(g, selectedKey)}
+                  onToggle={toggleGoal}
+                  onEdit={editGoal}
+                  onDelete={deleteGoal}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </section>
+
+      <GoalForm
+        open={formOpen}
+        initial={editingGoal}
+        defaultDate={selectedKey}
+        onClose={() => { setFormOpen(false); setEditingGoal(null) }}
+        onSubmit={submitForm}
+      />
     </PageContainer>
   )
 }
