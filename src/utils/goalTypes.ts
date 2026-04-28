@@ -1,6 +1,26 @@
 // Catalog of goal types. Keep all type-specific knowledge here so UI and
 // storage layers stay generic.
 
+import type {
+  Goal,
+  GoalInput,
+  GoalPayload,
+  GoalTypeId,
+  GymKind,
+  Prayer,
+  Recurrence,
+  TrackedApp,
+  ValidationResult,
+} from '../types'
+import { formatMinutes } from './numbers'
+
+interface GoalTypeMeta {
+  id: GoalTypeId
+  label: string
+  icon: string
+  accent: string
+}
+
 export const GOAL_TYPES = {
   gym: {
     id: 'gym',
@@ -38,27 +58,34 @@ export const GOAL_TYPES = {
     icon: '🥩',
     accent: 'from-red-700/40 to-rose-900/40',
   },
-}
+} satisfies Record<GoalTypeId, GoalTypeMeta>
 
 export const GOAL_TYPE_LIST = Object.values(GOAL_TYPES)
 
-export const GYM_KINDS = ['aerobic', 'anaerobic']
+export const GYM_KINDS = ['aerobic', 'anaerobic'] as const satisfies readonly GymKind[]
 export const WATER_MAX_LITRES = 4
-export const PRAYERS = ['Fajr', 'Zuhur', 'Asr', 'Maghrib', 'Isha', 'Tahajjud', 'Dhuha']
-export const FIVE_DAILY_PRAYERS = ['Fajr', 'Zuhur', 'Asr', 'Maghrib', 'Isha']
-export const TRACKED_APPS = ['抖音', '视频号', '王者荣耀']
+export const PRAYERS = ['Fajr', 'Zuhur', 'Asr', 'Maghrib', 'Isha', 'Tahajjud', 'Dhuha'] as const satisfies readonly Prayer[]
+export const FIVE_DAILY_PRAYERS = ['Fajr', 'Zuhur', 'Asr', 'Maghrib', 'Isha'] as const satisfies readonly Prayer[]
+export const TRACKED_APPS = ['抖音', '视频号', '王者荣耀'] as const satisfies readonly TrackedApp[]
 
 export const RECURRENCE_OPTIONS = [
   { id: 'none',          label: 'Does not repeat' },
   { id: 'daily',         label: 'Daily' },
   { id: 'every_n_days',  label: 'Every N days' },
   { id: 'weekly',        label: 'Weekly' },
-]
+] as const satisfies readonly { id: Recurrence; label: string }[]
 
 // ── Validation ──────────────────────────────────────────────────────────────
 
-export function validateGoalInput({ type, payload, date, recurrence, recurrenceIntervalDays, recurrenceEndDate }) {
-  const errors = {}
+export function validateGoalInput({
+  type,
+  payload,
+  date,
+  recurrence,
+  recurrenceIntervalDays,
+  recurrenceEndDate,
+}: GoalInput | Goal): ValidationResult {
+  const errors: ValidationResult['errors'] = {}
 
   if (!type || !GOAL_TYPES[type]) errors.type = 'Pick a goal type.'
   if (!date) errors.date = 'Pick a date.'
@@ -79,7 +106,7 @@ export function validateGoalInput({ type, payload, date, recurrence, recurrenceI
     case 'gym': {
       const hours = Number(p.gymHours)
       if (!Number.isFinite(hours) || hours <= 0) errors.gymHours = 'Hours must be greater than 0.'
-      if (!GYM_KINDS.includes(p.gymType)) errors.gymType = 'Pick aerobic or anaerobic.'
+      if (!GYM_KINDS.includes(String(p.gymType) as GymKind)) errors.gymType = 'Pick aerobic or anaerobic.'
       break
     }
     case 'water': {
@@ -95,7 +122,7 @@ export function validateGoalInput({ type, payload, date, recurrence, recurrenceI
       break
     }
     case 'app_limit': {
-      if (!TRACKED_APPS.includes(p.appName)) errors.appName = 'Pick an app.'
+      if (!TRACKED_APPS.includes(String(p.appName) as TrackedApp)) errors.appName = 'Pick an app.'
       const mins = Number(p.appLimitMinutes)
       if (!Number.isFinite(mins) || mins <= 0) errors.appLimitMinutes = 'Time must be greater than 0.'
       break
@@ -121,20 +148,20 @@ export function validateGoalInput({ type, payload, date, recurrence, recurrenceI
 
 // ── Display formatting ──────────────────────────────────────────────────────
 
-export function formatGoalTitle(goal) {
+export function formatGoalTitle(goal: Pick<Goal, 'type' | 'payload'>): string {
   const p = goal.payload || {}
   switch (goal.type) {
     case 'gym':       return `Gym ${formatHours(p.gymHours)} · ${capitalize(p.gymType || '')}`
     case 'water':     return `Drink ${p.litres}L water`
     case 'salah':     return `Salah: ${(p.selectedPrayers || []).join(', ')}`
     case 'app_limit': return `${p.appName} — limit ${formatMinutes(p.appLimitMinutes)}`
-    case 'quran':     return `Quran ${p.pages} page${p.pages === 1 ? '' : 's'}${p.juz ? ` · Juz ${p.juz}` : ''}`
+    case 'quran':     return `Quran ${p.pages} page${Number(p.pages) === 1 ? '' : 's'}${p.juz ? ` · Juz ${p.juz}` : ''}`
     case 'protein':   return `Eat ${p.proteinGrams}g protein`
     default:          return GOAL_TYPES[goal.type]?.label || 'Goal'
   }
 }
 
-export function formatRecurrenceLabel(goal) {
+export function formatRecurrenceLabel(goal: Pick<Goal, 'recurrence' | 'recurrenceIntervalDays'>): string | null {
   switch (goal.recurrence) {
     case 'daily':         return 'Daily'
     case 'weekly':        return 'Weekly'
@@ -143,20 +170,34 @@ export function formatRecurrenceLabel(goal) {
   }
 }
 
-function formatHours(h) {
+export function isGoalTypeId(value: string): value is GoalTypeId {
+  return value in GOAL_TYPES
+}
+
+export function emptyPayloadForType(type: GoalTypeId): GoalPayload {
+  switch (type) {
+    case 'gym':
+      return { gymHours: '', gymType: 'anaerobic' }
+    case 'water':
+      return { litres: '' }
+    case 'salah':
+      return { selectedPrayers: [] }
+    case 'app_limit':
+      return { appName: TRACKED_APPS[0], appLimitMinutes: '' }
+    case 'quran':
+      return { pages: '', juz: '' }
+    case 'protein':
+      return { proteinGrams: '' }
+  }
+}
+
+function formatHours(h: unknown): string {
   const n = Number(h)
   if (!Number.isFinite(n)) return '0h'
   return Number.isInteger(n) ? `${n}h` : `${n}h`
 }
 
-function formatMinutes(min) {
-  const n = Math.max(0, Math.floor(Number(min) || 0))
-  if (n < 60) return `${n}m`
-  const h = Math.floor(n / 60)
-  const r = n % 60
-  return r ? `${h}h ${r}m` : `${h}h`
-}
-
-function capitalize(s) {
+function capitalize(s: unknown): string {
+  if (typeof s !== 'string') return ''
   return s ? s[0].toUpperCase() + s.slice(1) : ''
 }
