@@ -8,6 +8,7 @@ import GoalForm from '../components/GoalForm'
 import { booksStore } from '../db/books'
 import { goalsStore } from '../db/goals'
 import { todayKey } from '../utils/dateKey'
+import { useSettings } from '../hooks/useSettings'
 
 function greeting() {
   const h = new Date().getHours()
@@ -33,6 +34,7 @@ function progressPercent(book) {
 
 export default function Home() {
   const navigate = useNavigate()
+  const [settings] = useSettings()
   const [revision, setRevision] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState(null)
@@ -47,7 +49,7 @@ export default function Home() {
   const currentBook = books.find((book) => book.progress > 0 && book.progress < book.totalPages) ?? books[0]
   const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[tKey]?.pages ?? 0), 0)
   const todayMinutes = books.reduce((sum, book) => sum + (book.dailyStats?.[tKey]?.timeMinutes ?? 0), 0)
-  const dailyGoal = 30
+  const dailyGoal = settings.dailyReadingGoal
   const goalPct = Math.min(100, Math.round((todayPages / dailyGoal) * 100))
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 

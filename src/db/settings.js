@@ -24,6 +24,7 @@ const DEFAULTS = {
   readerTheme: 'sepia',     // matches the screenshot's selected state
   readerFont: 'georgia',
   lineSpacing: 'normal',
+  dailyReadingGoal: 30,     // pages per day
   notifications: true,
   dailyReminder: true,
   autoSync: false,
@@ -38,6 +39,8 @@ function clean(raw) {
   out.notifications = Boolean(out.notifications)
   out.dailyReminder = Boolean(out.dailyReminder)
   out.autoSync = Boolean(out.autoSync)
+  const goal = Math.floor(Number(out.dailyReadingGoal))
+  out.dailyReadingGoal = Number.isFinite(goal) && goal > 0 ? Math.min(goal, 999) : DEFAULTS.dailyReadingGoal
   return out
 }
 

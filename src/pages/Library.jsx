@@ -8,12 +8,16 @@ import {
   BookOpenIcon,
   FireIcon,
   ClockIcon,
+  PencilSquareIcon,
+  CheckIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import BookCard from '../components/BookCard'
 import Button from '../components/Button'
 import Card from '../components/Card'
 import { booksStore } from '../db/books'
+import { useSettings } from '../hooks/useSettings'
 
 const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
 
@@ -36,10 +40,26 @@ function formatMinutes(value) {
 
 export default function Library() {
   const navigate = useNavigate()
+  const [settings, setSettings] = useSettings()
   const [books] = useState(() => booksStore.getAll())
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [gridView, setGridView] = useState(true)
+  const [editingGoal, setEditingGoal] = useState(false)
+  const [goalDraft, setGoalDraft] = useState(String(settings.dailyReadingGoal))
+
+  const startEditGoal = () => {
+    setGoalDraft(String(settings.dailyReadingGoal))
+    setEditingGoal(true)
+  }
+  const saveGoal = () => {
+    const n = Math.floor(Number(goalDraft))
+    if (Number.isFinite(n) && n > 0) {
+      setSettings({ dailyReadingGoal: Math.min(n, 999) })
+    }
+    setEditingGoal(false)
+  }
+  const cancelGoal = () => setEditingGoal(false)
   const todayKey = getLocalDateKey()
   const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.pages ?? 0), 0)
   const totalMinutes = books.reduce((sum, book) => sum + (book.timeSpentMinutes ?? 0), 0)
@@ -128,6 +148,81 @@ export default function Library() {
       <p className="text-xs text-text-muted mb-4">
         {filtered.length} {filtered.length === 1 ? 'book' : 'books'}
       </p>
+
+      {/* Daily reading goal — editable */}
+      <section className="mb-6">
+        <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
+          Daily Reading Goal
+        </h2>
+
+        <Card variant="surface">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-accent/15 border border-accent/30 flex items-center justify-center flex-shrink-0">
+              <BookOpenIcon className="w-5 h-5 text-accent" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              {editingGoal ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    autoFocus
+                    min={1}
+                    max={999}
+                    value={goalDraft}
+                    onChange={(e) => setGoalDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveGoal()
+                      if (e.key === 'Escape') cancelGoal()
+                    }}
+                    className="number-input-clean w-20 bg-surface-2 border border-accent/40 rounded-xl px-3 py-1.5 text-sm font-semibold text-text-primary focus:outline-none"
+                  />
+                  <span className="text-sm text-text-muted">pages / day</span>
+                </div>
+              ) : (
+                <>
+                  <p className="text-base font-semibold text-text-primary">
+                    {settings.dailyReadingGoal} pages
+                  </p>
+                  <p className="text-2xs text-text-muted mt-0.5">
+                    Shown on Home as today's target
+                  </p>
+                </>
+              )}
+            </div>
+
+            <div className="flex-shrink-0 flex items-center gap-1">
+              {editingGoal ? (
+                <>
+                  <button
+                    onClick={saveGoal}
+                    aria-label="Save goal"
+                    className="p-2 rounded-xl bg-accent/15 text-accent hover:bg-accent/25 transition-colors"
+                  >
+                    <CheckIcon className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={cancelGoal}
+                    aria-label="Cancel"
+                    className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.05] transition-colors"
+                  >
+                    <XMarkIcon className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={startEditGoal}
+                  aria-label="Edit goal"
+                  className="p-2 rounded-xl text-text-muted hover:text-text-primary hover:bg-white/[0.05] transition-colors"
+                >
+                  <PencilSquareIcon className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        </Card>
+      </section>
 
       <section className="mb-6">
         <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest mb-3">
