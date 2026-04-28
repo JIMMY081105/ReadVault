@@ -1,21 +1,19 @@
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpenIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
+import { BookOpenIcon, ChevronRightIcon, PlusIcon } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
+import GoalCard from '../components/GoalCard'
+import GoalForm from '../components/GoalForm'
 import { booksStore } from '../db/books'
+import { goalsStore } from '../db/goals'
+import { todayKey } from '../utils/dateKey'
 
 function greeting() {
   const h = new Date().getHours()
   if (h < 12) return 'Good morning'
   if (h < 18) return 'Good afternoon'
   return 'Good evening'
-}
-
-function getLocalDateKey() {
-  const now = new Date()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${now.getFullYear()}-${month}-${day}`
 }
 
 function formatMinutes(value) {
@@ -35,14 +33,47 @@ function progressPercent(book) {
 
 export default function Home() {
   const navigate = useNavigate()
+  const [revision, setRevision] = useState(0)
+  const [formOpen, setFormOpen] = useState(false)
+  const [editingGoal, setEditingGoal] = useState(null)
+
+  const refresh = () => setRevision((r) => r + 1)
+
   const books = booksStore.getAll()
-  const todayKey = getLocalDateKey()
+  const tKey = todayKey()
+  const goals = goalsStore.getForDate(tKey)
+  const completedCount = goals.filter((g) => goalsStore.isCompletedOn(g, tKey)).length
+
   const currentBook = books.find((book) => book.progress > 0 && book.progress < book.totalPages) ?? books[0]
-  const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.pages ?? 0), 0)
-  const todayMinutes = books.reduce((sum, book) => sum + (book.dailyStats?.[todayKey]?.timeMinutes ?? 0), 0)
+  const todayPages = books.reduce((sum, book) => sum + (book.dailyStats?.[tKey]?.pages ?? 0), 0)
+  const todayMinutes = books.reduce((sum, book) => sum + (book.dailyStats?.[tKey]?.timeMinutes ?? 0), 0)
   const dailyGoal = 30
   const goalPct = Math.min(100, Math.round((todayPages / dailyGoal) * 100))
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+  const toggleGoal = (goal, dateKey, completed) => {
+    goalsStore.markCompleted(goal.id, dateKey, completed)
+    refresh()
+  }
+
+  const editGoal = (goal) => { setEditingGoal(goal); setFormOpen(true) }
+  const deleteGoal = (goal) => {
+    if (confirm(`Delete "${goal.type}" goal?`)) {
+      goalsStore.delete(goal.id)
+      refresh()
+    }
+  }
+
+  const submitForm = (input) => {
+    if (editingGoal) goalsStore.update(editingGoal.id, input)
+    else goalsStore.create(input)
+    setFormOpen(false)
+    setEditingGoal(null)
+    refresh()
+  }
+
+  // Force re-render via revision key (state map kept simple)
+  void revision
 
   return (
     <PageContainer>
@@ -52,6 +83,55 @@ export default function Home() {
           {greeting()}
         </h1>
       </div>
+
+      {/* ─ Goals for Today ─────────────────────────────────────────────── */}
+      <section className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xs font-semibold text-text-muted uppercase tracking-widest">
+            Goals for Today
+          </h2>
+          <button
+            onClick={() => { setEditingGoal(null); setFormOpen(true) }}
+            className="text-xs text-accent flex items-center gap-0.5 hover:text-accent/80 transition-colors"
+          >
+            <PlusIcon className="w-3.5 h-3.5" /> Add
+          </button>
+        </div>
+
+        {goals.length === 0 ? (
+          <Card variant="surface" className="text-center py-6">
+            <p className="text-sm text-text-secondary mb-1">No goals for today yet.</p>
+            <p className="text-2xs text-text-muted mb-3">
+              Add one here, or schedule from the Calendar.
+            </p>
+            <button
+              onClick={() => { setEditingGoal(null); setFormOpen(true) }}
+              className="inline-flex items-center gap-1 text-xs font-medium text-accent hover:text-accent/80"
+            >
+              <PlusIcon className="w-4 h-4" /> New goal
+            </button>
+          </Card>
+        ) : (
+          <>
+            <p className="text-2xs text-text-muted mb-2">
+              {completedCount} of {goals.length} done
+            </p>
+            <div className="space-y-2.5">
+              {goals.map((g) => (
+                <GoalCard
+                  key={g.id}
+                  goal={g}
+                  dateKey={tKey}
+                  completed={goalsStore.isCompletedOn(g, tKey)}
+                  onToggle={toggleGoal}
+                  onEdit={editGoal}
+                  onDelete={deleteGoal}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </section>
 
       {currentBook && (
         <section className="mb-8">
@@ -165,6 +245,14 @@ export default function Home() {
           </div>
         </Card>
       </section>
+
+      <GoalForm
+        open={formOpen}
+        initial={editingGoal}
+        defaultDate={tKey}
+        onClose={() => { setFormOpen(false); setEditingGoal(null) }}
+        onSubmit={submitForm}
+      />
     </PageContainer>
   )
 }
