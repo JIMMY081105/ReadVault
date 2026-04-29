@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  PlusIcon,
   MagnifyingGlassIcon,
   Squares2X2Icon,
   ListBulletIcon,
@@ -14,7 +13,6 @@ import {
 } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import BookCard from '../components/BookCard'
-import Button from '../components/Button'
 import Card from '../components/Card'
 import { booksStore } from '../db/books'
 import { useSettings } from '../hooks/useSettings'
@@ -74,9 +72,6 @@ export default function Library() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">Library</h1>
-        <Button size="icon" variant="surface">
-          <PlusIcon className="w-5 h-5" />
-        </Button>
       </div>
 
       {/* Search */}
@@ -266,16 +261,6 @@ export default function Library() {
         </div>
       )}
 
-      {/* Add Book FAB */}
-      <div className="fixed bottom-24 right-5 z-40" style={{ bottom: 'calc(4.5rem + env(safe-area-inset-bottom) + 1rem)' }}>
-        <button className="
-          w-14 h-14 rounded-full bg-accent text-black shadow-glow
-          flex items-center justify-center
-          active:scale-95 transition-transform duration-150
-        ">
-          <PlusIcon className="w-6 h-6" />
-        </button>
-      </div>
     </PageContainer>
   )
 }
