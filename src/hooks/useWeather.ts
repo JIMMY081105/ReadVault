@@ -90,18 +90,65 @@ interface IpwhoResp {
   country?: string
 }
 
+interface IpapiCoResp {
+  latitude?: number
+  longitude?: number
+  city?: string
+  region?: string
+  country_name?: string
+  error?: boolean
+}
+
+interface GeoJsResp {
+  latitude?: string | number
+  longitude?: string | number
+  city?: string
+  region?: string
+  country_name?: string
+}
+
 // IP-based geolocation: works without permission. Coarse (city level).
-// ipwho.is is keyless, HTTPS, accessible from China.
+// We try multiple providers because some are blocked in some regions (notably China).
 async function getIpCoords(): Promise<{ lat: number; lon: number; name: string | null } | null> {
+  // 1) ipwho.is — keyless, HTTPS, generally fast
   try {
-    const data = await fetchJson<IpwhoResp>('https://ipwho.is/', 6000)
-    if (data.success === false) return null
-    if (typeof data.latitude !== 'number' || typeof data.longitude !== 'number') return null
-    const name = data.city || data.region || data.country || null
-    return { lat: data.latitude, lon: data.longitude, name }
-  } catch {
-    return null
-  }
+    const data = await fetchJson<IpwhoResp>('https://ipwho.is/', 5000)
+    if (data.success !== false && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+      return {
+        lat: data.latitude,
+        lon: data.longitude,
+        name: data.city || data.region || data.country || null,
+      }
+    }
+  } catch { /* try next */ }
+
+  // 2) ipapi.co — keyless, 1000 reqs/day per IP
+  try {
+    const data = await fetchJson<IpapiCoResp>('https://ipapi.co/json/', 5000)
+    if (!data.error && typeof data.latitude === 'number' && typeof data.longitude === 'number') {
+      return {
+        lat: data.latitude,
+        lon: data.longitude,
+        name: data.city || data.region || data.country_name || null,
+      }
+    }
+  } catch { /* try next */ }
+
+  // 3) get.geojs.io — keyless, often accessible where others fail
+  try {
+    const data = await fetchJson<GeoJsResp>('https://get.geojs.io/v1/ip/geo.json', 5000)
+    const lat = typeof data.latitude === 'string' ? parseFloat(data.latitude) : data.latitude
+    const lon = typeof data.longitude === 'string' ? parseFloat(data.longitude) : data.longitude
+    if (typeof lat === 'number' && typeof lon === 'number' && !Number.isNaN(lat) && !Number.isNaN(lon)) {
+      return {
+        lat,
+        lon,
+        name: data.city || data.region || data.country_name || null,
+      }
+    }
+  } catch { /* give up */ }
+
+  return null
 }
 
 // ── Weather ─────────────────────────────────────────────────────────────────
