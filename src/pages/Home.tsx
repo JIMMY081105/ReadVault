@@ -9,6 +9,7 @@ import { booksStore } from '../db/books'
 import { goalsStore } from '../db/goals'
 import { todayKey } from '../utils/dateKey'
 import { useSettings } from '../hooks/useSettings'
+import { useWeather } from '../hooks/useWeather'
 import { bookProgressPercent, formatMinutes } from '../utils/numbers'
 import type { DateKey, Goal, GoalInput } from '../types'
 
@@ -22,6 +23,7 @@ function greeting() {
 export default function Home() {
   const navigate = useNavigate()
   const [settings] = useSettings()
+  const { weather } = useWeather()
   const [, setRevision] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
@@ -65,8 +67,13 @@ export default function Home() {
     <PageContainer>
       <div className="mb-8">
         <p className="text-sm text-text-muted mb-1">{today}</p>
-        <h1 className="text-2xl font-bold text-text-primary tracking-tight">
-          {greeting()}
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-baseline gap-3 flex-wrap">
+          <span>{greeting()}</span>
+          {weather && (
+            <span className="text-base font-medium text-text-secondary">
+              {weather.emoji} {weather.tempC}°C
+            </span>
+          )}
         </h1>
       </div>
 

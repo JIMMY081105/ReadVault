@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Library from './pages/Library'
 import Reader from './pages/Reader'
 import Calendar from './pages/Calendar'
+import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 
 export default function App() {
@@ -17,6 +18,7 @@ export default function App() {
         <Route index element={<Home />} />
         <Route path="/library" element={<Library />} />
         <Route path="/calendar" element={<Calendar />} />
+        <Route path="/reports" element={<Reports />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

@@ -3,12 +3,14 @@ import {
   HomeIcon,
   BookOpenIcon,
   CalendarDaysIcon,
+  ChartBarIcon,
   Cog6ToothIcon,
 } from '@heroicons/react/24/outline'
 import {
   HomeIcon as HomeIconSolid,
   BookOpenIcon as BookOpenIconSolid,
   CalendarDaysIcon as CalendarIconSolid,
+  ChartBarIcon as ChartBarIconSolid,
   Cog6ToothIcon as CogIconSolid,
 } from '@heroicons/react/24/solid'
 
@@ -16,6 +18,7 @@ const tabs = [
   { to: '/',          label: 'Home',     Icon: HomeIcon,          IconActive: HomeIconSolid },
   { to: '/library',   label: 'Library',  Icon: BookOpenIcon,      IconActive: BookOpenIconSolid },
   { to: '/calendar',  label: 'Calendar', Icon: CalendarDaysIcon,  IconActive: CalendarIconSolid },
+  { to: '/reports',   label: 'Reports',  Icon: ChartBarIcon,      IconActive: ChartBarIconSolid },
   { to: '/settings',  label: 'Settings', Icon: Cog6ToothIcon,     IconActive: CogIconSolid },
 ]
 
