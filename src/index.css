@@ -75,13 +75,6 @@
     animation: slideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
-  /* Reading text */
-  .reading-text {
-    font-family: 'Georgia', 'Times New Roman', serif;
-    line-height: 1.9;
-    letter-spacing: 0.01em;
-  }
-
   .number-input-clean {
     appearance: textfield;
     -moz-appearance: textfield;

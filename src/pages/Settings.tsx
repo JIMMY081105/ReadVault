@@ -1,15 +1,15 @@
 import {
   SunIcon, MoonIcon, DevicePhoneMobileIcon, BellIcon,
-  BookOpenIcon, ArrowPathIcon, ShieldCheckIcon,
+  ArrowPathIcon, ShieldCheckIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon,
-  UserCircleIcon, SwatchIcon, DocumentTextIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline'
 import { useNavigate } from 'react-router-dom'
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import { useSettings } from '../hooks/useSettings'
 import { useAuth, signOut } from '../hooks/useAuth'
-import type { IconComponent, ReaderFont, ReaderTheme, LineSpacing } from '../types'
+import type { IconComponent } from '../types'
 import type { ReactNode } from 'react'
 
 interface ToggleProps {
@@ -88,30 +88,11 @@ function Divider() {
   return <div className="h-px bg-white/[0.05] mx-4" />
 }
 
-const THEMES = [
-  { id: 'dark',  label: 'Dark',  swatch: 'bg-black text-white' },
-  { id: 'sepia', label: 'Sepia', swatch: 'bg-[#1a150e] text-[#c8a97e]' },
-  { id: 'light', label: 'Light', swatch: 'bg-white text-black' },
-] as const satisfies readonly { id: ReaderTheme; label: string; swatch: string }[]
-const FONTS = [
-  { id: 'system',       label: 'System',       sample: 'Aa' },
-  { id: 'georgia',      label: 'Georgia',      sample: 'Aa', family: 'Georgia, serif' },
-  { id: 'merriweather', label: 'Merriweather', sample: 'Aa', family: 'Merriweather, Georgia, serif' },
-] as const satisfies readonly { id: ReaderFont; label: string; sample: string; family?: string }[]
-const SPACINGS = [
-  { id: 'compact', label: 'Compact' },
-  { id: 'normal',  label: 'Normal'  },
-  { id: 'relaxed', label: 'Relaxed' },
-] as const satisfies readonly { id: LineSpacing; label: string }[]
-
 export default function Settings() {
   const navigate = useNavigate()
   const [settings, setSettings] = useSettings()
   const { session } = useAuth()
-  const {
-    darkMode, notifications, dailyReminder, autoSync,
-    readerTheme, readerFont, lineSpacing,
-  } = settings
+  const { darkMode, notifications, dailyReminder, autoSync } = settings
 
   const handleSignOut = async () => {
     if (!confirm('Sign out of ReadVault?')) return
@@ -152,94 +133,6 @@ export default function Settings() {
           description={darkMode ? 'AMOLED black interface' : 'Light interface'}
           right={<Toggle enabled={darkMode} onToggle={() => setSettings({ darkMode: !darkMode })} />}
         />
-        <Divider />
-
-        {/* Theme picker */}
-        <div className="px-4 py-3.5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
-              <SwatchIcon className="w-4 h-4 text-text-secondary" />
-            </div>
-            <p className="text-sm font-medium text-text-primary flex-1">Reader Theme</p>
-          </div>
-          <div className="flex gap-2 ml-11">
-            {THEMES.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setSettings({ readerTheme: t.id })}
-                className={`
-                  flex-1 py-2 rounded-xl text-xs font-semibold transition-all duration-150
-                  ${t.swatch}
-                  ${readerTheme === t.id ? 'ring-2 ring-accent ring-offset-2 ring-offset-surface' : 'opacity-60'}
-                `}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      {/* Reader */}
-      <SectionHeader>Reader</SectionHeader>
-      <Card variant="surface" padding={false} className="mx-4 overflow-hidden">
-        {/* Font */}
-        <div className="px-4 py-3.5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
-              <DocumentTextIcon className="w-4 h-4 text-text-secondary" />
-            </div>
-            <p className="text-sm font-medium text-text-primary flex-1">Reading Font</p>
-          </div>
-          <div className="flex gap-2 ml-11">
-            {FONTS.map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setSettings({ readerFont: f.id })}
-                style={'family' in f ? { fontFamily: f.family } : undefined}
-                className={`
-                  flex-1 py-1.5 rounded-xl text-xs font-medium transition-all duration-150
-                  border
-                  ${readerFont === f.id
-                    ? 'bg-accent/15 border-accent/40 text-accent'
-                    : 'bg-white/[0.04] border-white/[0.06] text-text-muted'
-                  }
-                `}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <Divider />
-
-        {/* Line spacing */}
-        <div className="px-4 py-3.5">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-8 h-8 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
-              <BookOpenIcon className="w-4 h-4 text-text-secondary" />
-            </div>
-            <p className="text-sm font-medium text-text-primary flex-1">Line Spacing</p>
-          </div>
-          <div className="flex gap-2 ml-11">
-            {SPACINGS.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => setSettings({ lineSpacing: s.id })}
-                className={`
-                  flex-1 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 border
-                  ${lineSpacing === s.id
-                    ? 'bg-accent/15 border-accent/40 text-accent'
-                    : 'bg-white/[0.04] border-white/[0.06] text-text-muted'
-                  }
-                `}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </Card>
 
       {/* Notifications */}

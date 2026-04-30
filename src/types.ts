@@ -2,15 +2,8 @@ import type { ComponentType, ReactNode, SVGProps } from 'react'
 
 export type DateKey = string
 
-export type ReaderTheme = 'dark' | 'sepia' | 'light'
-export type ReaderFont = 'system' | 'georgia' | 'merriweather'
-export type LineSpacing = 'compact' | 'normal' | 'relaxed'
-
 export interface Settings {
   darkMode: boolean
-  readerTheme: ReaderTheme
-  readerFont: ReaderFont
-  lineSpacing: LineSpacing
   dailyReadingGoal: number
   notifications: boolean
   dailyReminder: boolean
