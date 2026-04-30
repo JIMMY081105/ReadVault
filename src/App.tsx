@@ -8,6 +8,7 @@ import Calendar from './pages/Calendar'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 import Login from './pages/Login'
+import ResetPassword from './pages/ResetPassword'
 import { useAuth } from './hooks/useAuth'
 
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -33,6 +34,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Reader is full-screen — no nav bar */}
       <Route
