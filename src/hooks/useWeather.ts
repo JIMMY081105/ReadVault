@@ -8,7 +8,7 @@ export interface Weather {
   location: string | null
 }
 
-const CACHE_KEY = 'rv_weather_cache_v3'
+const CACHE_KEY = 'rv_weather_cache_v4'
 const CACHE_TTL_MS = 30 * 60 * 1000
 
 function emojiForCode(code: number): string {
@@ -56,9 +56,70 @@ function descriptionForCode(code: number): string {
 
 interface CacheEntry { weather: Weather; ts: number }
 
+async function fetchJson<T>(url: string, timeoutMs = 6000, init?: RequestInit): Promise<T> {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(url, { ...init, signal: controller.signal })
+    if (!res.ok) throw new Error('http_' + res.status)
+    return await res.json() as T
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+// ── Coordinate sources ──────────────────────────────────────────────────────
+
+async function getBrowserCoords(): Promise<{ lat: number; lon: number } | null> {
+  if (!('geolocation' in navigator)) return null
+  return new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: p.coords.latitude, lon: p.coords.longitude }),
+      () => resolve(null),
+      { timeout: 8000, maximumAge: 60 * 60_000 },
+    )
+  })
+}
+
+interface IpwhoResp {
+  success?: boolean
+  latitude?: number
+  longitude?: number
+  city?: string
+  region?: string
+  country?: string
+}
+
+// IP-based geolocation: works without permission. Coarse (city level).
+// ipwho.is is keyless, HTTPS, accessible from China.
+async function getIpCoords(): Promise<{ lat: number; lon: number; name: string | null } | null> {
+  try {
+    const data = await fetchJson<IpwhoResp>('https://ipwho.is/', 6000)
+    if (data.success === false) return null
+    if (typeof data.latitude !== 'number' || typeof data.longitude !== 'number') return null
+    const name = data.city || data.region || data.country || null
+    return { lat: data.latitude, lon: data.longitude, name }
+  } catch {
+    return null
+  }
+}
+
+// ── Weather ─────────────────────────────────────────────────────────────────
+
 interface OpenMeteoResp {
   current?: { temperature_2m?: number; weather_code?: number }
 }
+
+async function fetchWeather(lat: number, lon: number): Promise<{ tempC: number; code: number }> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`
+  const data = await fetchJson<OpenMeteoResp>(url, 7000)
+  const t = data.current?.temperature_2m
+  const c = data.current?.weather_code
+  if (typeof t !== 'number' || typeof c !== 'number') throw new Error('bad_payload')
+  return { tempC: Math.round(t), code: c }
+}
+
+// ── Location name (reverse geocoding) ───────────────────────────────────────
 
 interface NominatimResp {
   name?: string
@@ -78,47 +139,36 @@ interface NominatimResp {
   }
 }
 
-async function fetchLocationName(lat: number, lon: number): Promise<string | null> {
-  try {
-    // zoom=14 ≈ town/suburb precision. Nominatim picks the most specific admin
-    // unit at that zoom; we then prefer village/hamlet/town/suburb in the
-    // address object before falling back to broader names.
-    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&accept-language=en`
-    const res = await fetch(url, { headers: { Accept: 'application/json' } })
-    if (!res.ok) return null
-    const data = await res.json() as NominatimResp
-    const a = data.address ?? {}
-    return (
-      a.village ||
-      a.hamlet ||
-      a.town ||
-      a.suburb ||
-      a.neighbourhood ||
-      a.quarter ||
-      a.municipality ||
-      a.city ||
-      a.county ||
-      a.state_district ||
-      a.state ||
-      data.name ||
-      a.country ||
-      null
-    )
-  } catch {
-    return null
-  }
+interface BdcResp {
+  city?: string
+  locality?: string
+  principalSubdivision?: string
+  countryName?: string
 }
 
-async function fetchWeather(lat: number, lon: number): Promise<{ tempC: number; code: number }> {
-  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`
-  const res = await fetch(url)
-  if (!res.ok) throw new Error('http_' + res.status)
-  const data = await res.json() as OpenMeteoResp
-  const t = data.current?.temperature_2m
-  const c = data.current?.weather_code
-  if (typeof t !== 'number' || typeof c !== 'number') throw new Error('bad_payload')
-  return { tempC: Math.round(t), code: c }
+async function fetchLocationName(lat: number, lon: number): Promise<string | null> {
+  // 1) Nominatim — most precise (village/hamlet level), but slow/blocked in some regions.
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&accept-language=en`
+    const data = await fetchJson<NominatimResp>(url, 4500, { headers: { Accept: 'application/json' } })
+    const a = data.address ?? {}
+    const name =
+      a.village || a.hamlet || a.town || a.suburb || a.neighbourhood || a.quarter ||
+      a.municipality || a.city || a.county || a.state_district || a.state || data.name
+    if (name) return name
+  } catch { /* try fallback */ }
+
+  // 2) BigDataCloud — keyless, accessible globally including China.
+  try {
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+    const data = await fetchJson<BdcResp>(url, 4500)
+    return data.locality || data.city || data.principalSubdivision || data.countryName || null
+  } catch { /* give up */ }
+
+  return null
 }
+
+// ── Hook ────────────────────────────────────────────────────────────────────
 
 export function useWeather(): { weather: Weather | null; error: string | null } {
   const [weather, setWeather] = useState<Weather | null>(null)
@@ -136,39 +186,49 @@ export function useWeather(): { weather: Weather | null; error: string | null } 
       }
     } catch { /* ignore corrupt cache */ }
 
-    if (!('geolocation' in navigator)) {
-      setError('unsupported')
-      return
-    }
-
     let cancelled = false
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords
-          const [{ tempC, code }, location] = await Promise.all([
-            fetchWeather(latitude, longitude),
-            fetchLocationName(latitude, longitude),
-          ])
-          if (cancelled) return
-          const w: Weather = {
-            tempC,
-            code,
-            emoji: emojiForCode(code),
-            description: descriptionForCode(code),
-            location,
-          }
-          setWeather(w)
-          try {
-            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ weather: w, ts: Date.now() } satisfies CacheEntry))
-          } catch { /* quota — ignore */ }
-        } catch {
-          if (!cancelled) setError('fetch_failed')
+
+    void (async () => {
+      // Coords: try browser geolocation first (precise), then IP-based (no permission needed).
+      let lat: number, lon: number
+      let ipName: string | null = null
+
+      const browserCoords = await getBrowserCoords()
+      if (browserCoords) {
+        lat = browserCoords.lat
+        lon = browserCoords.lon
+      } else {
+        const ip = await getIpCoords()
+        if (!ip) {
+          if (!cancelled) setError('no_location')
+          return
         }
-      },
-      () => { if (!cancelled) setError('denied') },
-      { timeout: 10_000, maximumAge: 60 * 60_000 },
-    )
+        lat = ip.lat
+        lon = ip.lon
+        ipName = ip.name
+      }
+
+      try {
+        const [w, name] = await Promise.all([
+          fetchWeather(lat, lon),
+          fetchLocationName(lat, lon),
+        ])
+        if (cancelled) return
+        const result: Weather = {
+          tempC: w.tempC,
+          code: w.code,
+          emoji: emojiForCode(w.code),
+          description: descriptionForCode(w.code),
+          location: name || ipName,
+        }
+        setWeather(result)
+        try {
+          sessionStorage.setItem(CACHE_KEY, JSON.stringify({ weather: result, ts: Date.now() } satisfies CacheEntry))
+        } catch { /* quota — ignore */ }
+      } catch {
+        if (!cancelled) setError('fetch_failed')
+      }
+    })()
 
     return () => { cancelled = true }
   }, [])
