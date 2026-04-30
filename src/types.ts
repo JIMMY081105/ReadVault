@@ -105,17 +105,6 @@ export interface ValidationResult {
   errors: ValidationErrors
 }
 
-export interface Chapter {
-  number: number
-  title: string
-  subtitle?: string
-  paragraphs: string[]
-}
-
-export interface BookContent {
-  chapters: Chapter[]
-}
-
 export type IconComponent = ComponentType<SVGProps<SVGSVGElement>>
 
 export interface Option<T extends string = string> {

@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   MagnifyingGlassIcon,
   Squares2X2Icon,
@@ -10,24 +9,31 @@ import {
   PencilSquareIcon,
   CheckIcon,
   XMarkIcon,
+  PlusIcon,
 } from '@heroicons/react/24/outline'
 import PageContainer from '../components/PageContainer'
 import BookCard from '../components/BookCard'
 import Card from '../components/Card'
+import LogSessionForm from '../components/LogSessionForm'
+import BookForm from '../components/BookForm'
 import { booksStore } from '../db/books'
 import { useSettings } from '../hooks/useSettings'
 import { useSyncRevision } from '../hooks/useSync'
 import { todayKey } from '../utils/dateKey'
 import { bookProgressPercent, formatMinutes } from '../utils/numbers'
+import type { Book } from '../types'
 
 const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
 
 export default function Library() {
-  const navigate = useNavigate()
   const [settings, setSettings] = useSettings()
   useSyncRevision() // re-render after remote pull
+  const [, setRevision] = useState(0)
+  const refresh = () => setRevision((r) => r + 1)
   const books = booksStore.getAll()
   const [search, setSearch] = useState('')
+  const [logBook, setLogBook] = useState<Book | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
   const [activeFilter, setActiveFilter] = useState('All')
   const [gridView, setGridView] = useState(true)
   const [editingGoal, setEditingGoal] = useState(false)
@@ -74,6 +80,12 @@ export default function Library() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-text-primary tracking-tight">Library</h1>
+        <button
+          onClick={() => setAddOpen(true)}
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-accent text-black text-xs font-semibold active:scale-95 transition-transform"
+        >
+          <PlusIcon className="w-3.5 h-3.5" /> Add book
+        </button>
       </div>
 
       {/* Search */}
@@ -230,12 +242,12 @@ export default function Library() {
         }>
           {filtered.map((book) =>
             gridView ? (
-              <BookCard key={book.id} book={book} />
+              <BookCard key={book.id} book={book} onClick={setLogBook} />
             ) : (
               /* List view row */
               <div
                 key={book.id}
-                onClick={() => navigate(`/reader/${book.id}`)}
+                onClick={() => setLogBook(book)}
                 className="flex items-center gap-3 bg-surface border border-white/[0.06] rounded-2xl p-3 active:scale-[0.98] transition-transform cursor-pointer"
               >
                 <div className={`w-10 h-14 rounded-xl flex-shrink-0 ${book.gradient}`} />
@@ -263,6 +275,18 @@ export default function Library() {
         </div>
       )}
 
+      <LogSessionForm
+        open={Boolean(logBook)}
+        book={logBook}
+        onClose={() => setLogBook(null)}
+        onLogged={refresh}
+      />
+
+      <BookForm
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdded={refresh}
+      />
     </PageContainer>
   )
 }

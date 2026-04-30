@@ -5,6 +5,7 @@ import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import GoalCard from '../components/GoalCard'
 import GoalForm from '../components/GoalForm'
+import LogSessionForm from '../components/LogSessionForm'
 import { booksStore } from '../db/books'
 import { goalsStore } from '../db/goals'
 import { todayKey } from '../utils/dateKey'
@@ -29,6 +30,7 @@ export default function Home() {
   const [, setRevision] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
+  const [logSessionOpen, setLogSessionOpen] = useState(false)
 
   const refresh = () => setRevision((r) => r + 1)
 
@@ -148,7 +150,7 @@ export default function Home() {
           <Card
             variant="elevated"
             padding={false}
-            onClick={() => navigate(`/reader/${currentBook.id}`)}
+            onClick={() => setLogSessionOpen(true)}
             className="overflow-hidden"
           >
             <div className="flex">
@@ -187,7 +189,7 @@ export default function Home() {
                 {Math.max(0, currentBook.totalPages - currentBook.progress)} pages left
               </span>
               <span className="text-xs font-semibold text-accent">
-                Continue
+                Log session
               </span>
             </div>
           </Card>
@@ -250,6 +252,13 @@ export default function Home() {
         defaultDate={tKey}
         onClose={() => { setFormOpen(false); setEditingGoal(null) }}
         onSubmit={submitForm}
+      />
+
+      <LogSessionForm
+        open={logSessionOpen}
+        book={currentBook ?? null}
+        onClose={() => setLogSessionOpen(false)}
+        onLogged={refresh}
       />
     </PageContainer>
   )

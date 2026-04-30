@@ -3,7 +3,6 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import MainLayout from './layouts/MainLayout'
 import Home from './pages/Home'
 import Library from './pages/Library'
-import Reader from './pages/Reader'
 import Calendar from './pages/Calendar'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
@@ -36,13 +35,7 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 
-      {/* Reader is full-screen — no nav bar */}
-      <Route
-        path="/reader/:id?"
-        element={<RequireAuth><Reader /></RequireAuth>}
-      />
-
-      {/* All other pages share the main layout */}
+      {/* All authenticated pages share the main layout */}
       <Route element={<RequireAuth><MainLayout /></RequireAuth>}>
         <Route index element={<Home />} />
         <Route path="/library" element={<Library />} />
