@@ -8,7 +8,7 @@ export interface Weather {
   location: string | null
 }
 
-const CACHE_KEY = 'rv_weather_cache_v2'
+const CACHE_KEY = 'rv_weather_cache_v3'
 const CACHE_TTL_MS = 30 * 60 * 1000
 
 function emojiForCode(code: number): string {
@@ -60,20 +60,50 @@ interface OpenMeteoResp {
   current?: { temperature_2m?: number; weather_code?: number }
 }
 
-interface BdcResp {
-  city?: string
-  locality?: string
-  principalSubdivision?: string
-  countryName?: string
+interface NominatimResp {
+  name?: string
+  address?: {
+    village?: string
+    hamlet?: string
+    town?: string
+    suburb?: string
+    neighbourhood?: string
+    quarter?: string
+    municipality?: string
+    city?: string
+    county?: string
+    state_district?: string
+    state?: string
+    country?: string
+  }
 }
 
 async function fetchLocationName(lat: number, lon: number): Promise<string | null> {
   try {
-    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
-    const res = await fetch(url)
+    // zoom=14 ≈ town/suburb precision. Nominatim picks the most specific admin
+    // unit at that zoom; we then prefer village/hamlet/town/suburb in the
+    // address object before falling back to broader names.
+    const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=14&accept-language=en`
+    const res = await fetch(url, { headers: { Accept: 'application/json' } })
     if (!res.ok) return null
-    const data = await res.json() as BdcResp
-    return data.city || data.locality || data.principalSubdivision || data.countryName || null
+    const data = await res.json() as NominatimResp
+    const a = data.address ?? {}
+    return (
+      a.village ||
+      a.hamlet ||
+      a.town ||
+      a.suburb ||
+      a.neighbourhood ||
+      a.quarter ||
+      a.municipality ||
+      a.city ||
+      a.county ||
+      a.state_district ||
+      a.state ||
+      data.name ||
+      a.country ||
+      null
+    )
   } catch {
     return null
   }
