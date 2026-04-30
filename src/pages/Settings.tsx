@@ -1,6 +1,7 @@
+import { useState } from 'react'
 import {
-  SunIcon, MoonIcon, DevicePhoneMobileIcon, BellIcon,
-  ArrowPathIcon, ShieldCheckIcon,
+  SunIcon, MoonIcon, BellIcon,
+  ShieldCheckIcon,
   ChevronRightIcon, ArrowRightOnRectangleIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/outline'
@@ -9,6 +10,14 @@ import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import { useSettings } from '../hooks/useSettings'
 import { useAuth, signOut } from '../hooks/useAuth'
+import {
+  notificationSupported,
+  notificationPermission,
+  requestNotificationPermission,
+  scheduleDailyReminder,
+  cancelDailyReminder,
+  fireReminderNotification,
+} from '../lib/notifications'
 import type { IconComponent } from '../types'
 import type { ReactNode } from 'react'
 
@@ -92,7 +101,8 @@ export default function Settings() {
   const navigate = useNavigate()
   const [settings, setSettings] = useSettings()
   const { session } = useAuth()
-  const { darkMode, notifications, dailyReminder, autoSync } = settings
+  const { darkMode, dailyReminder } = settings
+  const [permState, setPermState] = useState(notificationPermission())
 
   const handleSignOut = async () => {
     if (!confirm('Sign out of ReadVault?')) return
@@ -100,7 +110,43 @@ export default function Settings() {
     navigate('/login', { replace: true })
   }
 
+  const handleReminderToggle = async () => {
+    if (dailyReminder) {
+      // Turning off
+      cancelDailyReminder()
+      setSettings({ dailyReminder: false })
+      return
+    }
+
+    // Turning on — ensure permission first.
+    if (!notificationSupported()) {
+      alert('Notifications are not supported in this browser.')
+      return
+    }
+
+    const result = await requestNotificationPermission()
+    setPermState(result)
+    if (result !== 'granted') {
+      alert(
+        result === 'denied'
+          ? 'Notifications were blocked. Enable them in browser/Settings → Notifications, then try again.'
+          : 'Permission was not granted.'
+      )
+      return
+    }
+
+    scheduleDailyReminder()
+    setSettings({ dailyReminder: true })
+  }
+
   const userEmail = session?.user.email ?? 'Reader'
+
+  const reminderDescription =
+    permState === 'denied'
+      ? 'Notifications blocked — enable in Settings'
+      : permState === 'unsupported'
+      ? 'Not supported on this device'
+      : '9:00 PM every day (when app is open)'
 
   return (
     <PageContainer flush className="!pt-14">
@@ -140,28 +186,27 @@ export default function Settings() {
       <Card variant="surface" padding={false} className="mx-4 overflow-hidden">
         <SettingsRow
           icon={BellIcon}
-          label="Push Notifications"
-          right={<Toggle enabled={notifications} onToggle={() => setSettings({ notifications: !notifications })} />}
-        />
-        <Divider />
-        <SettingsRow
-          icon={DevicePhoneMobileIcon}
           label="Daily Reading Reminder"
-          description="9:00 PM every day"
-          right={<Toggle enabled={dailyReminder} onToggle={() => setSettings({ dailyReminder: !dailyReminder })} />}
+          description={reminderDescription}
+          right={<Toggle enabled={dailyReminder} onToggle={handleReminderToggle} />}
         />
+        {dailyReminder && permState === 'granted' && (
+          <>
+            <Divider />
+            <SettingsRow
+              icon={BellIcon}
+              label="Test notification now"
+              description="Sends a sample reminder immediately"
+              onClick={fireReminderNotification}
+              right={null}
+            />
+          </>
+        )}
       </Card>
 
       {/* Data */}
-      <SectionHeader>Data & Sync</SectionHeader>
+      <SectionHeader>Data</SectionHeader>
       <Card variant="surface" padding={false} className="mx-4 overflow-hidden">
-        <SettingsRow
-          icon={ArrowPathIcon}
-          label="Auto Sync"
-          description="Sync library across devices"
-          right={<Toggle enabled={autoSync} onToggle={() => setSettings({ autoSync: !autoSync })} />}
-        />
-        <Divider />
         <SettingsRow
           icon={ShieldCheckIcon}
           label="Privacy Policy"

@@ -9,9 +9,7 @@ const STORAGE_KEY = 'rv_settings'
 const DEFAULTS: Settings = {
   darkMode: true,
   dailyReadingGoal: 30,     // pages per day
-  notifications: true,
-  dailyReminder: true,
-  autoSync: false,
+  dailyReminder: false,     // off until the user grants notification permission
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,9 +27,7 @@ function clean(raw: unknown): Settings {
   return {
     darkMode: pickBoolean(input.darkMode, DEFAULTS.darkMode),
     dailyReadingGoal: Number.isFinite(goal) && goal > 0 ? Math.min(goal, 999) : DEFAULTS.dailyReadingGoal,
-    notifications: pickBoolean(input.notifications, DEFAULTS.notifications),
     dailyReminder: pickBoolean(input.dailyReminder, DEFAULTS.dailyReminder),
-    autoSync: pickBoolean(input.autoSync, DEFAULTS.autoSync),
   }
 }
 

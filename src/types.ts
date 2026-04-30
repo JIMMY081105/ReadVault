@@ -5,9 +5,7 @@ export type DateKey = string
 export interface Settings {
   darkMode: boolean
   dailyReadingGoal: number
-  notifications: boolean
   dailyReminder: boolean
-  autoSync: boolean
 }
 
 export interface DailyReadingStats {
