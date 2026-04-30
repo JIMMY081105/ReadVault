@@ -4,9 +4,11 @@ import {
   ChevronRightIcon, ArrowRightOnRectangleIcon,
   UserCircleIcon, SwatchIcon, DocumentTextIcon,
 } from '@heroicons/react/24/outline'
+import { useNavigate } from 'react-router-dom'
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import { useSettings } from '../hooks/useSettings'
+import { useAuth, signOut } from '../hooks/useAuth'
 import type { IconComponent, ReaderFont, ReaderTheme, LineSpacing } from '../types'
 import type { ReactNode } from 'react'
 
@@ -103,11 +105,21 @@ const SPACINGS = [
 ] as const satisfies readonly { id: LineSpacing; label: string }[]
 
 export default function Settings() {
+  const navigate = useNavigate()
   const [settings, setSettings] = useSettings()
+  const { session } = useAuth()
   const {
     darkMode, notifications, dailyReminder, autoSync,
     readerTheme, readerFont, lineSpacing,
   } = settings
+
+  const handleSignOut = async () => {
+    if (!confirm('Sign out of ReadVault?')) return
+    await signOut()
+    navigate('/login', { replace: true })
+  }
+
+  const userEmail = session?.user.email ?? 'Reader'
 
   return (
     <PageContainer flush className="!pt-14">
@@ -124,10 +136,9 @@ export default function Settings() {
               <UserCircleIcon className="w-8 h-8 text-accent/70" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-base font-semibold text-text-primary">Reader</p>
-              <p className="text-sm text-text-muted truncate">Manage your profile</p>
+              <p className="text-base font-semibold text-text-primary truncate">{userEmail}</p>
+              <p className="text-sm text-text-muted truncate">Signed in</p>
             </div>
-            <ChevronRightIcon className="w-4 h-4 text-text-muted flex-shrink-0" />
           </div>
         </Card>
       </div>
@@ -273,6 +284,7 @@ export default function Settings() {
           label="Sign Out"
           danger
           right={null}
+          onClick={handleSignOut}
         />
       </Card>
 
