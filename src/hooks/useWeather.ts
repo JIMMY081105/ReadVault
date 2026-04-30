@@ -4,12 +4,13 @@ export interface Weather {
   tempC: number
   code: number
   emoji: string
+  description: string
+  location: string | null
 }
 
-const CACHE_KEY = 'rv_weather_cache'
+const CACHE_KEY = 'rv_weather_cache_v2'
 const CACHE_TTL_MS = 30 * 60 * 1000
 
-// Maps WMO weather interpretation codes to a representative emoji.
 function emojiForCode(code: number): string {
   if (code === 0) return '☀️'
   if (code <= 3) return '⛅'
@@ -23,7 +24,71 @@ function emojiForCode(code: number): string {
   return '🌡️'
 }
 
+function descriptionForCode(code: number): string {
+  switch (code) {
+    case 0:  return 'Clear'
+    case 1:  return 'Mainly clear'
+    case 2:  return 'Partly cloudy'
+    case 3:  return 'Overcast'
+    case 45: case 48: return 'Foggy'
+    case 51: return 'Light drizzle'
+    case 53: return 'Drizzle'
+    case 55: return 'Heavy drizzle'
+    case 56: case 57: return 'Freezing drizzle'
+    case 61: return 'Light rain'
+    case 63: return 'Rain'
+    case 65: return 'Heavy rain'
+    case 66: case 67: return 'Freezing rain'
+    case 71: return 'Light snow'
+    case 73: return 'Snow'
+    case 75: return 'Heavy snow'
+    case 77: return 'Snow grains'
+    case 80: return 'Light showers'
+    case 81: return 'Showers'
+    case 82: return 'Heavy showers'
+    case 85: return 'Light snow showers'
+    case 86: return 'Snow showers'
+    case 95: return 'Thunderstorm'
+    case 96: case 99: return 'Thunderstorm with hail'
+    default: return 'Weather'
+  }
+}
+
 interface CacheEntry { weather: Weather; ts: number }
+
+interface OpenMeteoResp {
+  current?: { temperature_2m?: number; weather_code?: number }
+}
+
+interface BdcResp {
+  city?: string
+  locality?: string
+  principalSubdivision?: string
+  countryName?: string
+}
+
+async function fetchLocationName(lat: number, lon: number): Promise<string | null> {
+  try {
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const data = await res.json() as BdcResp
+    return data.city || data.locality || data.principalSubdivision || data.countryName || null
+  } catch {
+    return null
+  }
+}
+
+async function fetchWeather(lat: number, lon: number): Promise<{ tempC: number; code: number }> {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('http_' + res.status)
+  const data = await res.json() as OpenMeteoResp
+  const t = data.current?.temperature_2m
+  const c = data.current?.weather_code
+  if (typeof t !== 'number' || typeof c !== 'number') throw new Error('bad_payload')
+  return { tempC: Math.round(t), code: c }
+}
 
 export function useWeather(): { weather: Weather | null; error: string | null } {
   const [weather, setWeather] = useState<Weather | null>(null)
@@ -51,15 +116,18 @@ export function useWeather(): { weather: Weather | null; error: string | null } 
       async (pos) => {
         try {
           const { latitude, longitude } = pos.coords
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code`
-          const res = await fetch(url)
-          if (!res.ok) throw new Error('http_' + res.status)
-          const data = await res.json() as { current?: { temperature_2m?: number; weather_code?: number } }
-          const t = data.current?.temperature_2m
-          const c = data.current?.weather_code
-          if (typeof t !== 'number' || typeof c !== 'number') throw new Error('bad_payload')
+          const [{ tempC, code }, location] = await Promise.all([
+            fetchWeather(latitude, longitude),
+            fetchLocationName(latitude, longitude),
+          ])
           if (cancelled) return
-          const w: Weather = { tempC: Math.round(t), code: c, emoji: emojiForCode(c) }
+          const w: Weather = {
+            tempC,
+            code,
+            emoji: emojiForCode(code),
+            description: descriptionForCode(code),
+            location,
+          }
           setWeather(w)
           try {
             sessionStorage.setItem(CACHE_KEY, JSON.stringify({ weather: w, ts: Date.now() } satisfies CacheEntry))

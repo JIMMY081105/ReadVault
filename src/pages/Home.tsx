@@ -67,11 +67,14 @@ export default function Home() {
     <PageContainer>
       <div className="mb-8">
         <p className="text-sm text-text-muted mb-1">{today}</p>
-        <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-baseline gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold text-text-primary tracking-tight flex items-baseline gap-x-3 gap-y-1 flex-wrap">
           <span>{greeting()}</span>
           {weather && (
-            <span className="text-base font-medium text-text-secondary">
-              {weather.emoji} {weather.tempC}°C
+            <span className="text-sm font-medium text-text-secondary">
+              {weather.emoji} {weather.description} {weather.tempC}°C
+              {weather.location && (
+                <span className="text-text-muted"> · {weather.location}</span>
+              )}
             </span>
           )}
         </h1>
