@@ -1,15 +1,11 @@
 import type { MouseEventHandler, ReactNode } from 'react'
 
-/**
- * Base card component. Use `variant` for different surface levels.
- *  surface  — #0d0d0d with subtle border (default)
- *  elevated — slightly lighter with stronger shadow
- *  glass    — blur glass effect
- */
+// Base card component.
+//  surface  — default dark panel with subtle border
+//  elevated — slightly lighter with stronger shadow
 const variants = {
   surface:  'bg-surface border border-white/[0.06] shadow-card',
   elevated: 'bg-surface-2 border border-white/[0.08] shadow-elevated',
-  glass:    'glass',
 } as const
 
 type CardVariant = keyof typeof variants

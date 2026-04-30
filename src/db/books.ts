@@ -4,6 +4,7 @@
 import type { Book, DailyReadingStats, DateKey } from '../types'
 import { todayKey } from '../utils/dateKey'
 import { clampInteger, toPositiveInteger } from '../utils/numbers'
+import { pushBook, deleteBookRemote } from '../lib/sync'
 
 const STORAGE_KEY = 'rv_books'
 const RETIRED_BOOK_IDS = new Set(['pragmatic', 'atomic-habits', 'deep-work'])
@@ -132,6 +133,7 @@ export const booksStore = {
     if (book) {
       book.progress = clampInteger(progress, 0, book.totalPages)
       save(books)
+      pushBook(book)
       return book
     }
     return null
@@ -158,6 +160,7 @@ export const booksStore = {
     }
 
     save(books)
+    pushBook(book)
     return book
   },
 
@@ -167,8 +170,12 @@ export const booksStore = {
     const normalized = normalizeBook(book)
     books.unshift(normalized)
     save(books)
+    pushBook(normalized)
     return normalized
   },
 
-  remove: (id: string): void => { save(init().filter((b) => b.id !== id)) },
+  remove: (id: string): void => {
+    save(init().filter((b) => b.id !== id))
+    deleteBookRemote(id)
+  },
 }

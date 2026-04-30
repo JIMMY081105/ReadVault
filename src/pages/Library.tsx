@@ -16,6 +16,7 @@ import BookCard from '../components/BookCard'
 import Card from '../components/Card'
 import { booksStore } from '../db/books'
 import { useSettings } from '../hooks/useSettings'
+import { useSyncRevision } from '../hooks/useSync'
 import { todayKey } from '../utils/dateKey'
 import { bookProgressPercent, formatMinutes } from '../utils/numbers'
 
@@ -24,7 +25,8 @@ const FILTERS = ['All', 'Reading', 'Finished', 'Unread']
 export default function Library() {
   const navigate = useNavigate()
   const [settings, setSettings] = useSettings()
-  const [books] = useState(() => booksStore.getAll())
+  useSyncRevision() // re-render after remote pull
+  const books = booksStore.getAll()
   const [search, setSearch] = useState('')
   const [activeFilter, setActiveFilter] = useState('All')
   const [gridView, setGridView] = useState(true)

@@ -3,6 +3,7 @@ import { ChevronLeftIcon, ChevronRightIcon, CheckIcon } from '@heroicons/react/2
 import PageContainer from '../components/PageContainer'
 import Card from '../components/Card'
 import { goalsStore } from '../db/goals'
+import { useSyncRevision } from '../hooks/useSync'
 import { toDateKey } from '../utils/dateKey'
 import { GOAL_TYPES, formatGoalTitle } from '../utils/goalTypes'
 import type { Goal, GoalTypeId } from '../types'
@@ -41,6 +42,7 @@ const CELL_COLOR: Record<GoalTypeId, string> = {
 
 export default function Reports() {
   const [anchor, setAnchor] = useState<Date>(() => new Date())
+  useSyncRevision() // re-render after remote pull
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor])
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])

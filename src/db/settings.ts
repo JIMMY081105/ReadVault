@@ -2,6 +2,7 @@
 // component using `useSettings` stays in sync.
 
 import type { LineSpacing, ReaderFont, ReaderTheme, Settings } from '../types'
+import { pushSettings } from '../lib/sync'
 
 const STORAGE_KEY = 'rv_settings'
 
@@ -81,6 +82,7 @@ export const settingsStore = {
   set: (patch: Partial<Settings>): Settings => {
     current = clean({ ...current, ...patch })
     localStorage.setItem(STORAGE_KEY, JSON.stringify(current))
+    pushSettings(current)
     emit()
     return current
   },
@@ -89,5 +91,3 @@ export const settingsStore = {
     return () => listeners.delete(listener)
   },
 }
-
-export const SETTINGS_DEFAULTS = DEFAULTS

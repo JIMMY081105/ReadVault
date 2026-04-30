@@ -10,6 +10,7 @@ import { goalsStore } from '../db/goals'
 import { todayKey } from '../utils/dateKey'
 import { useSettings } from '../hooks/useSettings'
 import { useWeather } from '../hooks/useWeather'
+import { useSyncRevision } from '../hooks/useSync'
 import { bookProgressPercent, formatMinutes } from '../utils/numbers'
 import type { DateKey, Goal, GoalInput } from '../types'
 
@@ -24,6 +25,7 @@ export default function Home() {
   const navigate = useNavigate()
   const [settings] = useSettings()
   const { weather } = useWeather()
+  useSyncRevision() // re-render after remote pull
   const [, setRevision] = useState(0)
   const [formOpen, setFormOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)

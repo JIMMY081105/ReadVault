@@ -5,6 +5,7 @@ import Card from '../components/Card'
 import GoalCard from '../components/GoalCard'
 import GoalForm from '../components/GoalForm'
 import { goalsStore } from '../db/goals'
+import { useSyncRevision } from '../hooks/useSync'
 import { toDateKey, todayKey, formatPrettyDate } from '../utils/dateKey'
 import type { DateKey, Goal, GoalInput } from '../types'
 
@@ -25,6 +26,7 @@ export default function Calendar() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null)
   const [revision, setRevision] = useState(0)
+  useSyncRevision() // re-render after remote pull
 
   const refresh = () => setRevision((r) => r + 1)
   void revision
